@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  /* Main color palette - Updated to whites and greys */
+  --color-primary: 96, 96, 96;      /* Grey */
+  --color-primary-dark: 64, 64, 64; /* Dark gray */
+  --color-primary-light: 160, 160, 160; /* Light gray */
+  
+  --color-background: 255, 255, 255; /* White */
+  --color-background-off: 245, 245, 245; /* Off-white */
+  
+  --color-text: 64, 64, 64;   /* Dark grey */
+  --color-text-light: 128, 128, 128; /* Gray */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--color-text));
+  background: rgb(var(--color-background-off));
+  font-family: Arial, sans-serif;
+}
+
+/* Custom utility classes */
+.bg-off-white {
+  background-color: rgb(var(--color-background-off));
+}
+
+.bg-primary {
+  background-color: rgb(var(--color-primary));
+}
+
+.text-primary {
+  color: rgb(var(--color-primary));
+}
+
+.border-primary {
+  border-color: rgb(var(--color-primary));
+}
+
+/* Dashboard card styling - remove all dark backgrounds */
+.dashboard-card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 overflow-hidden;
+}
+
+.dashboard-card-header {
+  @apply font-semibold text-gray-700 mb-2;
+}
+
+.dashboard-card-label {
+  @apply text-sm text-gray-600;
+}
+
+.dashboard-card-value {
+  @apply text-gray-800 font-bold;
+}
+
+/* Property type cards */
+.property-type-card {
+  @apply bg-white rounded-md shadow-sm border border-gray-200 p-3 text-gray-700;
+}
+
+/* Progress bars */
+.progress-bar-bg {
+  @apply bg-gray-200 rounded-full h-2 overflow-hidden;
+}
+
+.progress-bar {
+  @apply bg-gray-600 h-full rounded-full;
+}
+
+/* Price forecast */
+.forecast-card {
+  @apply bg-white rounded-md shadow-sm border border-gray-200 p-3;
+}
+
+.forecast-value-positive {
+  @apply text-gray-700 font-semibold;
+}
+
+.forecast-bar-bg {
+  @apply bg-gray-200 rounded-full h-2 overflow-hidden;
+}
+
+.forecast-bar {
+  @apply bg-gray-600 h-full rounded-full;
+}
+
+/* Infrastructure projects */
+.infrastructure-card {
+  @apply bg-white rounded-md shadow-sm border border-gray-200 p-3 mb-2;
+}
+
+.impact-positive {
+  @apply text-gray-700 font-semibold;
+}
+
+/* Demographic data display */
+.demographic-bar {
+  @apply h-6 rounded-full overflow-hidden flex;
+}
+
+.demographic-segment-1 {
+  @apply bg-gray-700;
+}
+
+.demographic-segment-2 {
+  @apply bg-gray-600;
+}
+
+.demographic-segment-3 {
+  @apply bg-gray-500;
+}
+
+.demographic-segment-4 {
+  @apply bg-gray-300;
+}
+
+.demographic-segment-5 {
+  @apply bg-gray-100;
+}
+
+/* Card styling */
+.card {
+  @apply bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden;
+}
+
+.card-header {
+  @apply p-4 border-b border-gray-200 bg-gray-100;
+}
+
+.card-body {
+  @apply p-4;
+}
+
+/* Button styling */
+.btn-primary {
+  @apply px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 disabled:opacity-50 transition-colors;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 bg-white text-gray-700 border border-gray-400 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 disabled:opacity-50 transition-colors;
+}
+
+/* Dashboard specific styles */
+.dashboard-container {
+  @apply p-6 rounded-lg bg-white shadow-sm border border-gray-200;
+}
+
+.dashboard-header {
+  @apply p-4 bg-gray-100 rounded-t-lg border-b border-gray-200;
+}
+
+.dashboard-icon {
+  @apply text-gray-600 mx-auto;
+}
+
+.feature-card {
+  @apply bg-white rounded-lg p-4 text-center border border-gray-200 shadow 
+  hover:shadow-md transition-all duration-300 hover:border-gray-300 
+  hover:translate-y-[-2px];
+}
+
+/* Add these additional styles to customize the card appearance further */
+.search-container {
+  @apply bg-white rounded-lg shadow border border-gray-200 p-4;
+}
+
+.api-container {
+  @apply bg-white rounded-lg shadow border border-gray-200 p-4;
+}
+
+/* Overriding dark backgrounds */
+.dashboard-dark {
+  @apply bg-white border border-gray-200 rounded-lg shadow-md;
+}
+
+/* Chart colors */
+.chart-green {
+  @apply text-gray-600 fill-gray-600;
+}
+
+/* Subtly animated hover effect for interactive elements */
+.hover-lift {
+  @apply transition-all duration-300 hover:translate-y-[-2px] hover:shadow-md;
+}
