@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import openai from './initOpenAi';
 
 // Define response type for all API functions
 export interface ApiResponse<T = string> {
@@ -16,84 +17,32 @@ export interface PropertySearchCriteria {
   amenities?: string[];
 }
 
-// Function to get API key from environment or local storage
-const getOpenAiApiKey = (): string => {
-  // Check localStorage first (client-side only)
-  if (typeof window !== 'undefined') {
-    const storedKey = localStorage.getItem('api_key_openAI');
-    if (storedKey) return storedKey;
-  }
-  
-  // Fallback to env variable
-  return process.env.NEXT_PUBLIC_OPENAI_API_KEY || '';
-};
-
-// Initialize the OpenAI API client
-const initOpenAiClient = (): OpenAI => {
-  const apiKey = getOpenAiApiKey();
-  if (!apiKey) {
-    throw new Error('OpenAI API key not found. Please configure it in the settings.');
-  }
-  return new OpenAI({ 
-    apiKey,
-    dangerouslyAllowBrowser: true // Enable browser usage with appropriate warning
-  });
-};
-
-// Helper function to safely generate content and handle errors
-const safeGenerateContent = async (client: OpenAI, prompt: string): Promise<ApiResponse> => {
+// Safe content generation with error handling
+const safeGenerateContent = async (prompt: string): Promise<ApiResponse> => {
   try {
-    // Get preferred model from localStorage or default to gpt-4o-mini
-    const preferredModel = typeof window !== 'undefined' 
-      ? localStorage.getItem('openai_model_preference') || 'gpt-4o-mini'
-      : 'gpt-4o-mini';
-    
-    // Track API calls
-    incrementApiCallCount();
-    
-    const completion = await client.chat.completions.create({
-      model: preferredModel,
-      messages: [
-        { role: "system", content: "You are a Dubai real estate market expert assistant. Provide detailed, factual information about Dubai's real estate market." },
-        { role: "user", content: prompt }
-      ],
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 1000,
     });
-    
-    const text = completion.choices[0]?.message?.content || '';
-    
+
     return {
       success: true,
-      data: text,
+      data: completion.choices[0]?.message?.content || ''
     };
   } catch (error) {
-    console.error('Error generating content from OpenAI:', error);
-    
-    let errorMessage = 'An unknown error occurred';
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-    
+    console.error('Error generating content:', error);
     return {
       success: false,
-      error: errorMessage,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     };
-  }
-};
-
-// Function to increment API call counter in localStorage
-const incrementApiCallCount = (): void => {
-  if (typeof window !== 'undefined') {
-    const currentCount = localStorage.getItem('openai_api_call_count');
-    const newCount = currentCount ? parseInt(currentCount, 10) + 1 : 1;
-    localStorage.setItem('openai_api_call_count', newCount.toString());
   }
 };
 
 // Get property information based on search criteria
 export async function getPropertyInfo(criteria: PropertySearchCriteria): Promise<ApiResponse> {
   try {
-    const client = initOpenAiClient();
-    
     // Create a prompt that's specific to property lookup
     let prompt = `You are a Dubai real estate market expert assistant. Please provide detailed information about properties in Dubai with the following criteria:\n\n`;
     
@@ -123,7 +72,7 @@ export async function getPropertyInfo(criteria: PropertySearchCriteria): Promise
 
 Base your analysis on current Dubai real estate market data, referencing the Dubai Land Department records where possible.`;
 
-    return await safeGenerateContent(client, prompt);
+    return await safeGenerateContent(prompt);
   } catch (error) {
     console.error('Error in getPropertyInfo:', error);
     let errorMessage = 'An unknown error occurred';
@@ -141,8 +90,6 @@ Base your analysis on current Dubai real estate market data, referencing the Dub
 // Get developer information
 export async function getDeveloperInfo(developerName: string): Promise<ApiResponse> {
   try {
-    const client = initOpenAiClient();
-    
     const prompt = `You are a Dubai real estate market expert assistant. Please provide detailed information about the developer "${developerName}" in Dubai's real estate market.
 
 Please include:
@@ -156,7 +103,7 @@ Please include:
 
 Base your analysis on current Dubai real estate market data, referencing the Dubai Land Department records where possible.`;
 
-    return await safeGenerateContent(client, prompt);
+    return await safeGenerateContent(prompt);
   } catch (error) {
     console.error('Error in getDeveloperInfo:', error);
     let errorMessage = 'An unknown error occurred';
@@ -178,8 +125,6 @@ export async function getRentalMarketInfo(criteria: {
   bedrooms?: number;
 }): Promise<ApiResponse> {
   try {
-    const client = initOpenAiClient();
-    
     let prompt = `You are a Dubai real estate market expert assistant. Please provide detailed information about the current rental market in Dubai for properties with the following criteria:\n\n`;
     
     if (criteria.location) {
@@ -203,7 +148,7 @@ export async function getRentalMarketInfo(criteria: {
 
 Base your analysis on current Dubai real estate market data, referencing the Dubai Land Department records and Rental Index where possible.`;
 
-    return await safeGenerateContent(client, prompt);
+    return await safeGenerateContent(prompt);
   } catch (error) {
     console.error('Error in getRentalMarketInfo:', error);
     let errorMessage = 'An unknown error occurred';
@@ -221,8 +166,6 @@ Base your analysis on current Dubai real estate market data, referencing the Dub
 // Get market forecast information
 export async function getMarketForecast(timeframe: string = '12 months'): Promise<ApiResponse> {
   try {
-    const client = initOpenAiClient();
-    
     const prompt = `You are a Dubai real estate market expert assistant. Please provide a detailed forecast of the Dubai property market for the next ${timeframe}.
 
 Please include:
@@ -236,7 +179,7 @@ Please include:
 
 Base your forecast on current Dubai real estate market data and trends, referencing the Dubai Land Department records and economic indicators where possible.`;
 
-    return await safeGenerateContent(client, prompt);
+    return await safeGenerateContent(prompt);
   } catch (error) {
     console.error('Error in getMarketForecast:', error);
     let errorMessage = 'An unknown error occurred';
@@ -254,8 +197,6 @@ Base your forecast on current Dubai real estate market data and trends, referenc
 // Function to extract specific information from Dubai Land Department website
 export async function getDubaiLandInfo(infoType: 'projects' | 'regulations' | 'transactions' | 'services'): Promise<ApiResponse> {
   try {
-    const client = initOpenAiClient();
-    
     let prompt = `You are a Dubai real estate data specialist. I need you to provide current information about `;
     
     switch (infoType) {
@@ -273,7 +214,7 @@ export async function getDubaiLandInfo(infoType: 'projects' | 'regulations' | 't
         break;
     }
 
-    return await safeGenerateContent(client, prompt);
+    return await safeGenerateContent(prompt);
   } catch (error) {
     console.error('Error in getDubaiLandInfo:', error);
     let errorMessage = 'An unknown error occurred';
@@ -293,10 +234,6 @@ export function initWithApiKey(apiKey: string): boolean {
   try {
     if (!apiKey || apiKey.length < 20) {
       return false;
-    }
-    
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('api_key_openAI', apiKey);
     }
     
     return true;

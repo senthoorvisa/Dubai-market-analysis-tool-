@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { huggingFaceService } from '../services/huggingFaceService';
+import { getRentalMarketInfo } from '../services/openAiService';
 
 interface RentalData {
   averageRent: number;
@@ -30,8 +30,12 @@ export default function RentalSection() {
     setLoading(true);
     setError(null);
     try {
-      const data = await huggingFaceService.getRentalData(loc);
-      setRentalData(data);
+      const response = await getRentalMarketInfo({ location: loc });
+      if (response.success && response.data) {
+        setRentalData(JSON.parse(response.data));
+      } else {
+        throw new Error(response.error || 'Failed to fetch rental data');
+      }
     } catch (error) {
       setError('Failed to fetch rental data. Please try again later.');
       console.error('Error fetching rental data:', error);
@@ -49,6 +53,7 @@ export default function RentalSection() {
     return new Intl.NumberFormat('en-AE', {
       style: 'currency',
       currency: 'AED',
+      minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
   };

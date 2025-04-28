@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { initOpenAI } from './services/initOpenAi';
+import openai from './services/initOpenAi';
 
 export default function ClientLayout({
   children,
@@ -13,8 +13,7 @@ export default function ClientLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Initialize OpenAI with the API key
-    initOpenAI();
+    // OpenAI is already initialized in initOpenAi.ts
   }, []);
 
   const toggleMobileMenu = () => {
