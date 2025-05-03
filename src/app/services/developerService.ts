@@ -118,15 +118,32 @@ const mockDeveloperAnalysis: DeveloperAnalysis = {
   }
 };
 
+// Enhanced developer service
 export const developerService = {
   // Function to get developer analysis by name
   getDeveloperAnalysis: async (developerName: string): Promise<DeveloperAnalysis> => {
     try {
-      // Simulate API call with a delay
+      // For a real implementation, we would call an external API:
+      // const response = await axios.get(`https://api.dubailandregistry.gov.ae/api/v1/developers/${encodeURIComponent(developerName)}`);
+      // return response.data;
+      
+      // For now, return static data but simulate a real API call
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Return the mock developer analysis
-      return mockDeveloperAnalysis;
+      return {
+        developer: {
+          id: 'dev-001',
+          name: developerName,
+          founded: getDeveloperFoundedYear(developerName),
+          description: `${developerName} is a leading real estate developer in Dubai.`,
+          headquarters: 'Dubai, UAE',
+          website: getDeveloperWebsite(developerName)
+        },
+        pastProjects: getMockProjects(developerName, 'completed', 5),
+        currentProjects: getMockProjects(developerName, 'ongoing', 3),
+        futureProjects: getMockProjects(developerName, 'future', 2),
+        statistics: getMockStatistics(developerName)
+      };
     } catch (error) {
       console.error('Error fetching developer analysis:', error);
       throw error;
@@ -136,40 +153,14 @@ export const developerService = {
   // Function to get all developers
   getAllDevelopers: async (): Promise<Developer[]> => {
     try {
-      // Simulate API call with a delay
+      // In a real implementation, we would call an external API:
+      // const response = await axios.get('https://api.dubailandregistry.gov.ae/api/v1/developers');
+      // return response.data;
+      
+      // For now, return static data but simulate a real API call
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Return a mock list of developers
-      return [
-        mockDeveloperAnalysis.developer,
-        {
-          id: 'dev-002',
-          name: 'Emaar Properties',
-          founded: 1997,
-          description: 'Emaar Properties is one of the largest real estate developers in the UAE.',
-          headquarters: 'Dubai, UAE',
-          website: 'https://www.emaar.com',
-          logoUrl: '/images/emaar-logo.png'
-        },
-        {
-          id: 'dev-003',
-          name: 'Nakheel',
-          founded: 2000,
-          description: 'Nakheel is a leading developer known for iconic projects like Palm Jumeirah.',
-          headquarters: 'Dubai, UAE',
-          website: 'https://www.nakheel.com',
-          logoUrl: '/images/nakheel-logo.png'
-        },
-        {
-          id: 'dev-004',
-          name: 'Damac Properties',
-          founded: 2002,
-          description: 'Damac Properties is a luxury real estate developer in Dubai.',
-          headquarters: 'Dubai, UAE',
-          website: 'https://www.damacproperties.com',
-          logoUrl: '/images/damac-logo.png'
-        }
-      ];
+      return getPopularDevelopers();
     } catch (error) {
       console.error('Error fetching all developers:', error);
       throw error;
@@ -179,18 +170,370 @@ export const developerService = {
   // Function to get projects by developer
   getDeveloperProjects: async (developerId: string): Promise<DeveloperProject[]> => {
     try {
-      // Simulate API call with a delay
+      // In a real implementation, we would call an external API:
+      // const response = await axios.get(`https://api.dubailandregistry.gov.ae/api/v1/developers/${developerId}/projects`);
+      // return response.data;
+      
+      // For now, return static data but simulate a real API call
       await new Promise(resolve => setTimeout(resolve, 600));
       
-      // Combine all projects from the mock data
+      const developerName = getDeveloperNameById(developerId);
       return [
-        ...mockDeveloperAnalysis.pastProjects,
-        ...mockDeveloperAnalysis.currentProjects,
-        ...mockDeveloperAnalysis.futureProjects
+        ...getMockProjects(developerName, 'completed', 5),
+        ...getMockProjects(developerName, 'ongoing', 3),
+        ...getMockProjects(developerName, 'future', 2)
       ];
     } catch (error) {
       console.error('Error fetching developer projects:', error);
       throw error;
     }
+  },
+
+  // Function to get real-time developer data for the developer analysis page
+  getRealTimeDeveloperData: async (developerName: string): Promise<any> => {
+    try {
+      // In a real implementation, we would call multiple APIs:
+      // const developerInfo = await axios.get(`https://api.dubailandregistry.gov.ae/api/v1/developers/${encodeURIComponent(developerName)}`);
+      // const projects = await axios.get(`https://api.dubailandregistry.gov.ae/api/v1/developers/${developerInfo.data.id}/projects`);
+      // const marketData = await axios.get(`https://api.dubailandregistry.gov.ae/api/v1/market/developer/${developerInfo.data.id}`);
+      
+      // For now, return static data but simulate a real API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return getDeveloperData(developerName);
+    } catch (error) {
+      console.error('Error fetching real-time developer data:', error);
+      throw error;
+    }
   }
+};
+
+// Helper functions to get static data
+const getDeveloperFoundedYear = (developerName: string): number => {
+  const foundedYears: Record<string, number> = {
+    'Emaar Properties': 1997,
+    'Damac Properties': 2002,
+    'Nakheel': 2000,
+    'Dubai Properties': 2004,
+    'Meraas': 2007,
+    'Sobha Realty': 1976,
+    'Azizi Developments': 2007,
+    'Deyaar Development': 2002,
+    'Omniyat': 2005,
+    'Danube Properties': 2014
+  };
+  
+  return foundedYears[developerName] || 2000;
+};
+
+const getDeveloperWebsite = (developerName: string): string => {
+  const websites: Record<string, string> = {
+    'Emaar Properties': 'https://www.emaar.com',
+    'Damac Properties': 'https://www.damacproperties.com',
+    'Nakheel': 'https://www.nakheel.com',
+    'Dubai Properties': 'https://www.dubaiproperties.ae',
+    'Meraas': 'https://www.meraas.com',
+    'Sobha Realty': 'https://www.sobharealty.com',
+    'Azizi Developments': 'https://www.azizidevelopments.com',
+    'Deyaar Development': 'https://www.deyaar.com',
+    'Omniyat': 'https://www.omniyat.com',
+    'Danube Properties': 'https://www.danubeproperties.ae'
+  };
+  
+  return websites[developerName] || `https://www.${developerName.toLowerCase().replace(/\s+/g, '')}.com`;
+};
+
+const getDeveloperNameById = (developerId: string): string => {
+  const idToName: Record<string, string> = {
+    'dev-001': 'Dubai Properties',
+    'dev-002': 'Emaar Properties',
+    'dev-003': 'Nakheel',
+    'dev-004': 'Damac Properties'
+  };
+  
+  return idToName[developerId] || 'Emaar Properties';
+};
+
+const getMockProjects = (developerName: string, status: 'completed' | 'ongoing' | 'future', count: number): DeveloperProject[] => {
+  const projects: DeveloperProject[] = [];
+  
+  const projectTypes = ['Residential', 'Commercial', 'Mixed-Use', 'Villa', 'Apartment'];
+  const locations = ['Dubai Marina', 'Downtown Dubai', 'Business Bay', 'Palm Jumeirah', 'Jumeirah Village Circle', 'Dubai Hills Estate'];
+  
+  for (let i = 1; i <= count; i++) {
+    const projectType = projectTypes[Math.floor(Math.random() * projectTypes.length)];
+    const location = locations[Math.floor(Math.random() * locations.length)];
+    
+    // Generate completion date based on status
+    let completionDate = '';
+    const currentYear = new Date().getFullYear();
+    
+    if (status === 'completed') {
+      // Completed projects are in the past
+      completionDate = `${currentYear - Math.floor(Math.random() * 10)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`;
+    } else if (status === 'ongoing') {
+      // Ongoing projects are in the near future
+      completionDate = `${currentYear + Math.floor(Math.random() * 2) + 1}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`;
+    } else {
+      // Future projects are further in the future
+      completionDate = `${currentYear + Math.floor(Math.random() * 5) + 3}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`;
+    }
+    
+    projects.push({
+      id: `${developerName.toLowerCase().replace(/\s+/g, '-')}-proj-${i}-${status}`,
+      name: `${developerName} ${location} ${projectType} ${i}`,
+      type: projectType,
+      location: location,
+      completionDate: completionDate,
+      status: status,
+      totalUnits: Math.floor(Math.random() * 500) + 100,
+      soldUnits: status === 'completed' ? Math.floor(Math.random() * 500) + 100 : undefined,
+      averagePrice: Math.floor(Math.random() * 5000000) + 1000000,
+      description: `A luxury ${projectType.toLowerCase()} project by ${developerName} located in ${location}`,
+      images: []
+    });
+  }
+  
+  return projects;
+};
+
+const getMockStatistics = (developerName: string): DeveloperAnalysis['statistics'] => {
+  return {
+    totalProjects: Math.floor(Math.random() * 50) + 20,
+    completedProjects: Math.floor(Math.random() * 20) + 5,
+    ongoingProjects: Math.floor(Math.random() * 10) + 3,
+    futureProjects: Math.floor(Math.random() * 5) + 2,
+    averageProjectValue: Math.floor(Math.random() * 1000000000) + 500000000,
+    averagePriceGrowth: Math.floor(Math.random() * 5) + 5,
+    averageTimeToCompletion: Math.floor(Math.random() * 2) + 2
+  };
+};
+
+const getPopularDevelopers = (): Developer[] => {
+  return [
+    {
+      id: 'dev-002',
+      name: 'Emaar Properties',
+      founded: 1997,
+      description: 'Emaar Properties is one of the largest real estate developers in the UAE.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.emaar.com'
+    },
+    {
+      id: 'dev-003',
+      name: 'Nakheel',
+      founded: 2000,
+      description: 'Nakheel is a leading developer known for iconic projects like Palm Jumeirah.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.nakheel.com'
+    },
+    {
+      id: 'dev-004',
+      name: 'Damac Properties',
+      founded: 2002,
+      description: 'Damac Properties is a luxury real estate developer in Dubai.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.damacproperties.com'
+    },
+    {
+      id: 'dev-001',
+      name: 'Dubai Properties',
+      founded: 2004,
+      description: 'Dubai Properties is a leading developer of iconic residential, commercial, and mixed-use developments across Dubai.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.dubaiproperties.ae'
+    },
+    {
+      id: 'dev-005',
+      name: 'Meraas',
+      founded: 2007,
+      description: 'Meraas is a Dubai-based conglomerate with operations and assets across multiple sectors.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.meraas.com'
+    },
+    {
+      id: 'dev-006',
+      name: 'Sobha Realty',
+      founded: 1976,
+      description: 'Sobha Realty is an international luxury developer committed to redefining the art of living.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.sobharealty.com'
+    },
+    {
+      id: 'dev-007',
+      name: 'Azizi Developments',
+      founded: 2007,
+      description: 'Azizi Developments is one of the leading private developers in Dubai.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.azizidevelopments.com'
+    },
+    {
+      id: 'dev-008',
+      name: 'Deyaar Development',
+      founded: 2002,
+      description: 'Deyaar Development is a leading real estate developer and real estate services company.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.deyaar.com'
+    },
+    {
+      id: 'dev-009',
+      name: 'Omniyat',
+      founded: 2005,
+      description: 'Omniyat creates living canvas of luxury, exclusivity and high-design.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.omniyat.com'
+    },
+    {
+      id: 'dev-010',
+      name: 'Danube Properties',
+      founded: 2014,
+      description: 'Danube Properties is the fastest growing private real estate developer in Dubai.',
+      headquarters: 'Dubai, UAE',
+      website: 'https://www.danubeproperties.ae'
+    }
+  ];
+};
+
+const getDeveloperData = (developerName: string): any => {
+  // This is the comprehensive data for the developer analysis page
+  const developerData: Record<string, any> = {
+    "Emaar Properties": {
+      id: 'emaar001',
+      name: 'Emaar Properties',
+      foundedYear: 1997,
+      website: 'https://www.emaar.com',
+      contact: {
+        phone: '+971 4 366 1688',
+        email: 'customercare@emaar.ae'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Emaar Properties is one of the world\'s most valuable and admired real estate development companies. With proven competencies in properties, shopping malls & retail and hospitality & leisure, Emaar shapes new lifestyles with a focus on design excellence, build quality and timely delivery.',
+      revenueBreakdown: [
+        { year: 1997, residential: 2, commercial: 1, mixedUse: 0 },
+        { year: 2000, residential: 5, commercial: 3, mixedUse: 1 },
+        { year: 2005, residential: 12, commercial: 8, mixedUse: 4 },
+        { year: 2010, residential: 18, commercial: 12, mixedUse: 7 },
+        { year: 2015, residential: 25, commercial: 16, mixedUse: 10 },
+        { year: 2020, residential: 32, commercial: 21, mixedUse: 15 },
+        { year: 2021, residential: 38, commercial: 19, mixedUse: 17 },
+        { year: 2022, residential: 45, commercial: 23, mixedUse: 20 },
+        { year: 2023, residential: 52, commercial: 28, mixedUse: 24 }
+      ],
+      topClients: [
+        { name: "Sheikh Mohammed bin Rashid", occupation: "Ruler of Dubai", revenue: 1200000000 },
+        { name: "Abdullah Al Ghurair", occupation: "Banking & Real Estate", revenue: 850000000 },
+        { name: "Hussain Sajwani", occupation: "DAMAC Owner", revenue: 720000000 },
+        { name: "Khalaf Al Habtoor", occupation: "Al Habtoor Group", revenue: 650000000 },
+        { name: "Majid Al Futtaim", occupation: "Retail Magnate", revenue: 580000000 }
+      ],
+      totalProjects: 87,
+      totalValue: 250000000000,
+      avgROI: 9.7,
+      clientSatisfaction: 4.8,
+      topProperties: [
+        { name: "Burj Khalifa", type: "Mixed-Use", location: "Downtown Dubai", value: 15000000000, completionYear: 2010, units: 900 },
+        { name: "Dubai Creek Tower", type: "Mixed-Use", location: "Dubai Creek Harbour", value: 8000000000, completionYear: 2022, units: 500 },
+        { name: "Dubai Hills Estate", type: "Residential", location: "Dubai Hills", value: 7500000000, completionYear: 2018, units: 2000 },
+        { name: "Downtown Dubai", type: "Mixed-Use", location: "Downtown", value: 12000000000, completionYear: 2008, units: 4000 },
+        { name: "Dubai Marina", type: "Residential", location: "Dubai Marina", value: 9000000000, completionYear: 2003, units: 6000 },
+        { name: "Arabian Ranches", type: "Residential", location: "Dubailand", value: 6000000000, completionYear: 2004, units: 4000 },
+        { name: "The Greens", type: "Residential", location: "Emirates Hills", value: 4000000000, completionYear: 2002, units: 3000 },
+        { name: "Dubai Creek Harbour", type: "Mixed-Use", location: "Ras Al Khor", value: 11000000000, completionYear: 2019, units: 5000 },
+        { name: "The Springs", type: "Residential", location: "Emirates Hills", value: 5000000000, completionYear: 2002, units: 4000 },
+        { name: "The Meadows", type: "Residential", location: "Emirates Hills", value: 5500000000, completionYear: 2002, units: 1800 }
+      ]
+    },
+    "Damac Properties": {
+      id: 'damac001',
+      name: 'Damac Properties',
+      foundedYear: 2002,
+      website: 'https://www.damacproperties.com',
+      contact: {
+        phone: '+971 4 301 9999',
+        email: 'info@damacgroup.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'DAMAC Properties has been at the forefront of the Middle East\'s luxury real estate market since 2002, delivering award-winning residential, commercial and leisure properties across the region, including the UAE, Saudi Arabia, Qatar, Jordan, Lebanon, and the United Kingdom.',
+      revenueBreakdown: [
+        { year: 2002, residential: 3, commercial: 1, mixedUse: 0 },
+        { year: 2005, residential: 8, commercial: 4, mixedUse: 2 },
+        { year: 2010, residential: 15, commercial: 9, mixedUse: 5 },
+        { year: 2015, residential: 20, commercial: 14, mixedUse: 9 },
+        { year: 2020, residential: 25, commercial: 18, mixedUse: 12 },
+        { year: 2021, residential: 30, commercial: 15, mixedUse: 14 },
+        { year: 2022, residential: 34, commercial: 19, mixedUse: 16 },
+        { year: 2023, residential: 40, commercial: 22, mixedUse: 18 }
+      ],
+      topClients: [
+        { name: "Mohammed Al Abbar", occupation: "Emaar Chairman", revenue: 950000000 },
+        { name: "Ravi Pillai", occupation: "RP Group", revenue: 680000000 },
+        { name: "Yusuff Ali M.A.", occupation: "LuLu Group", revenue: 520000000 },
+        { name: "B.R. Shetty", occupation: "NMC Healthcare", revenue: 480000000 },
+        { name: "Sunny Varkey", occupation: "GEMS Education", revenue: 410000000 }
+      ],
+      totalProjects: 65,
+      totalValue: 180000000000,
+      avgROI: 8.5,
+      clientSatisfaction: 4.2,
+      topProperties: [
+        { name: "DAMAC Hills", type: "Mixed-Use", location: "Dubailand", value: 7000000000, completionYear: 2013, units: 4000 },
+        { name: "DAMAC Towers by Paramount", type: "Residential", location: "Business Bay", value: 5000000000, completionYear: 2016, units: 1800 },
+        { name: "AYKON City", type: "Mixed-Use", location: "Sheikh Zayed Road", value: 6500000000, completionYear: 2021, units: 2200 },
+        { name: "DAMAC Heights", type: "Residential", location: "Dubai Marina", value: 4200000000, completionYear: 2018, units: 600 },
+        { name: "AKOYA Oxygen", type: "Residential", location: "Dubailand", value: 5800000000, completionYear: 2018, units: 5000 },
+        { name: "DAMAC Residenze", type: "Residential", location: "Dubai Marina", value: 3500000000, completionYear: 2017, units: 200 },
+        { name: "The Trump Estates", type: "Residential", location: "DAMAC Hills", value: 4000000000, completionYear: 2019, units: 100 },
+        { name: "AYKON London One", type: "Residential", location: "London, UK", value: 6000000000, completionYear: 2020, units: 450 },
+        { name: "DAMAC Maison", type: "Hospitality", location: "Business Bay", value: 3000000000, completionYear: 2013, units: 500 },
+        { name: "DAMAC Hills 2", type: "Residential", location: "Dubailand", value: 5500000000, completionYear: 2021, units: 4000 }
+      ]
+    },
+    "Nakheel": {
+      id: 'nakheel001',
+      name: 'Nakheel',
+      foundedYear: 2000,
+      website: 'https://www.nakheel.com',
+      contact: {
+        phone: '+971 4 390 3333',
+        email: 'info@nakheel.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Nakheel is a world-leading master developer whose innovative, landmark projects form an iconic portfolio of master communities and residential, retail, hospitality and leisure developments that are pivotal to realizing Dubai's vision.',
+      revenueBreakdown: [
+        { year: 2000, residential: 2, commercial: 1, mixedUse: 0 },
+        { year: 2005, residential: 10, commercial: 5, mixedUse: 2 },
+        { year: 2010, residential: 18, commercial: 9, mixedUse: 6 },
+        { year: 2015, residential: 23, commercial: 12, mixedUse: 8 },
+        { year: 2020, residential: 28, commercial: 15, mixedUse: 12 },
+        { year: 2021, residential: 31, commercial: 16, mixedUse: 13 },
+        { year: 2022, residential: 37, commercial: 18, mixedUse: 15 },
+        { year: 2023, residential: 42, commercial: 20, mixedUse: 18 }
+      ],
+      topClients: [
+        { name: "Sultan Ahmed bin Sulayem", occupation: "DP World", revenue: 880000000 },
+        { name: "Abdul Aziz Al Ghurair", occupation: "Mashreq Bank", revenue: 740000000 },
+        { name: "Saif Al Ghurair", occupation: "Al Ghurair Group", revenue: 610000000 },
+        { name: "Micky Jagtiani", occupation: "Landmark Group", revenue: 550000000 },
+        { name: "Raghuvinder Kataria", occupation: "Investor", revenue: 490000000 }
+      ],
+      totalProjects: 55,
+      totalValue: 210000000000,
+      avgROI: 8.9,
+      clientSatisfaction: 4.5,
+      topProperties: [
+        { name: "Palm Jumeirah", type: "Mixed-Use", location: "Palm Jumeirah", value: 15000000000, completionYear: 2006, units: 4000 },
+        { name: "The World Islands", type: "Mixed-Use", location: "Offshore Dubai", value: 12000000000, completionYear: 2008, units: 300 },
+        { name: "Deira Islands", type: "Mixed-Use", location: "Deira", value: 7500000000, completionYear: 2020, units: 3000 },
+        { name: "Palm Jebel Ali", type: "Mixed-Use", location: "Jebel Ali", value: 10000000000, completionYear: 2023, units: 3500 },
+        { name: "Jumeirah Islands", type: "Residential", location: "Jumeirah", value: 5000000000, completionYear: 2006, units: 736 },
+        { name: "The Gardens", type: "Residential", location: "Jebel Ali", value: 2000000000, completionYear: 2003, units: 2500 },
+        { name: "Discovery Gardens", type: "Residential", location: "Jebel Ali", value: 4000000000, completionYear: 2008, units: 26000 },
+        { name: "Al Furjan", type: "Residential", location: "Furjan", value: 3500000000, completionYear: 2010, units: 4000 },
+        { name: "Dragon City", type: "Commercial", location: "International City", value: 5000000000, completionYear: 2007, units: 5000 },
+        { name: "Palm Tower", type: "Mixed-Use", location: "Palm Jumeirah", value: 2000000000, completionYear: 2021, units: 432 }
+      ]
+    }
+  };
+
+  return developerData[developerName] || developerData["Emaar Properties"];
 }; 

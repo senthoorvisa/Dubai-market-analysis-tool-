@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaCog, FaKey, FaChartBar, FaRobot, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
+import { FaCog, FaKey, FaChartBar, FaRobot, FaExclamationTriangle, FaInfoCircle, FaCheck } from 'react-icons/fa';
 import Link from 'next/link';
 import { initWithApiKey } from '../services/openAiService';
+import apiKeyService from '../services/apiKeyService';
+import OpenAI from 'openai';
 
 // Define types for our component props
 interface UsageCardProps {
@@ -44,6 +46,8 @@ export default function SettingsPage() {
   const [apiCallCount, setApiCallCount] = useState(0);
   const [currentModel, setCurrentModel] = useState('gpt-4o-mini');
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
+  const [testingApiKey, setTestingApiKey] = useState(false);
+  const [testResult, setTestResult] = useState({ success: false, message: '' });
   
   // Real OpenAI usage data
   const apiUsageData = {
@@ -76,16 +80,25 @@ export default function SettingsPage() {
       if (modelPreference) {
         setCurrentModel(modelPreference);
       }
+      
+      // Set the new project-scoped API key automatically
+      const newApiKey = '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';
+      apiKeyService.secureSetApiKey(newApiKey);
+      setSavedKeys({
+        openAI: '●●●●●●●●●●●●●●●●●●●●' // Never display the actual key
+      });
+      setIsApiKeyConfigured(true);
+      console.log('Updated to new project-scoped API key');
     }
   }, []);
 
   const saveApiKey = (keyName: string, value: string) => {
     if (keyName === 'openAI') {
-      // Initialize the API with the new key
-      if (initWithApiKey(value)) {
+      // Initialize the API with the new key using the secure service
+      if (apiKeyService.secureSetApiKey(value)) {
         setSavedKeys({
           ...savedKeys,
-          [keyName]: value
+          [keyName]: '●●●●●●●●●●●●●●●●●●●●' // Never display the actual key
         });
         setKeySaveSuccess(`${keyName} key saved successfully! Your Dubai real estate AI is now fully functional.`);
         setIsApiKeyConfigured(true);
@@ -100,6 +113,63 @@ export default function SettingsPage() {
         setKeySaveSuccess('Invalid API key format. Please check and try again.');
         setTimeout(() => setKeySaveSuccess(''), 5000);
       }
+    }
+  };
+  
+  const testApiKey = async () => {
+    setTestingApiKey(true);
+    setTestResult({ success: false, message: '' });
+    
+    try {
+      // Get the API key from local storage
+      const apiKey = localStorage.getItem('openai_api_key');
+      
+      if (!apiKey) {
+        setTestResult({ 
+          success: false, 
+          message: 'No API key found. Please save your API key first.' 
+        });
+        setTestingApiKey(false);
+        return;
+      }
+      
+      // Create a temporary OpenAI client
+      const tempClient = new OpenAI({ 
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+      
+      // Make a simple test request
+      const response = await tempClient.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: "Hello, this is a test. Please respond with 'API key is working.'" }],
+        max_tokens: 10
+      });
+      
+      if (response && response.choices && response.choices.length > 0) {
+        setTestResult({ 
+          success: true, 
+          message: 'API key is working correctly!' 
+        });
+        
+        // Increment API call counter
+        const currentCount = parseInt(localStorage.getItem('openai_api_call_count') || '0', 10);
+        localStorage.setItem('openai_api_call_count', (currentCount + 1).toString());
+        setApiCallCount(currentCount + 1);
+      } else {
+        setTestResult({ 
+          success: false, 
+          message: 'Received an empty response. Please check your API key.' 
+        });
+      }
+    } catch (error) {
+      console.error('Error testing API key:', error);
+      setTestResult({ 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Unknown error occurred' 
+      });
+    } finally {
+      setTestingApiKey(false);
     }
   };
   
@@ -186,6 +256,28 @@ export default function SettingsPage() {
                   value={savedKeys.openAI}
                   onSave={(value) => saveApiKey('openAI', value)}
                 />
+                
+                {isApiKeyConfigured && (
+                  <div className="mt-4">
+                    <button
+                      onClick={testApiKey}
+                      disabled={testingApiKey}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+                    >
+                      {testingApiKey ? 'Testing...' : 'Test API Key'}
+                    </button>
+                    
+                    {testResult.message && (
+                      <div className={`mt-2 p-3 ${testResult.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'} rounded-md flex items-center`}>
+                        {testResult.success ? 
+                          <FaCheck className="text-green-600 mr-2" /> : 
+                          <FaExclamationTriangle className="text-red-600 mr-2" />
+                        }
+                        {testResult.message}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               
               <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">

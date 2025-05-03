@@ -60,4 +60,33 @@ export interface PropertyFilters {
     min: number;
     max: number;
   };
+}
+
+export interface UpcomingProject {
+  id: number;
+  name: string;
+  developer: string;
+  location: string;
+  completionDate: string;
+  propertyTypes: string[];
+  priceRange: string;
+  totalUnits: number;
+  keyFeatures: string[];
+  constructionStatus: string;
+  imageUrl?: string;
+}
+
+export interface OngoingProject {
+  id: number;
+  name: string;
+  developer: string;
+  location: string;
+  completionDate: string;
+  propertyTypes: string[];
+  priceRange: string;
+  totalUnits: number;
+  percentageCompleted: number;
+  keyFeatures: string[];
+  constructionUpdate: string;
+  imageUrl?: string;
 } 

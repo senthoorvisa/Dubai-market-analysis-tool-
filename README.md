@@ -10,6 +10,7 @@ A comprehensive real estate market analysis tool for Dubai. This application pro
 - **Dynamic Price Forecast**: Generate price predictions for properties at intervals of 6 months, 1 year, 2 years, 3 years, and 5 years.
 - **Infrastructure & Future Projects**: View nearby upcoming projects and their estimated impact on property values.
 - **Hugging Face Integration**: Get AI-powered property market insights using the Hugging Face API.
+- **Upcoming & Ongoing Projects**: Browse and filter real estate development projects that are either in planning stages or currently under construction with detailed information on status, pricing, and features.
 
 ## Tech Stack
 
@@ -93,6 +94,7 @@ Navigate to specific modules using the navigation bar to perform more detailed a
 - **Demographics**: Analyze population statistics and demographic information for a specific area.
 - **Price Forecast**: Generate dynamic price forecasts based on various parameters.
 - **Infrastructure**: View infrastructure projects and their impact on property values.
+- **Projects**: Browse upcoming and ongoing real estate development projects across Dubai, filter by location to find projects in specific areas, and view detailed information including completion dates, price ranges, and construction status.
 
 ### API Integration
 

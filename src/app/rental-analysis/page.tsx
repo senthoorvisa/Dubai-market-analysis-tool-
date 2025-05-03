@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { FaArrowLeft } from 'react-icons/fa';
-import DemographicAnalysis from '../components/DemographicAnalysis';
+import RentalDataTable from '../components/RentalDataTable';
+import '../styles/dubai-theme.css';
 
-export default function DemographicsPage() {
+export default function RentalAnalysisPage() {
   return (
     <div className="min-h-screen bg-anti-flash-white">
       <div className="container mx-auto px-4 py-8">
@@ -14,7 +15,7 @@ export default function DemographicsPage() {
             <Link href="/" className="mr-4 text-tuscany hover:text-tuscany/70 transition-colors">
               <FaArrowLeft className="h-5 w-5" />
             </Link>
-            <h1 className="text-3xl font-bold text-dubai-blue-900">Demographics</h1>
+            <h1 className="text-3xl font-bold text-dubai-blue-900">Rental Analysis</h1>
           </div>
           <Link href="/" className="flex items-center">
             <Image
@@ -26,7 +27,7 @@ export default function DemographicsPage() {
             />
           </Link>
         </div>
-        <DemographicAnalysis />
+        <RentalDataTable />
       </div>
     </div>
   );

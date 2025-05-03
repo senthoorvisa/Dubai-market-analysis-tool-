@@ -11,9 +11,22 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentPath, setCurrentPath] = useState('');
 
   useEffect(() => {
-    // OpenAI is already initialized in initOpenAi.ts
+    // Update current path when component mounts or URL changes
+    setCurrentPath(window.location.pathname);
+
+    // Add event listener for route changes
+    const handleRouteChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
   }, []);
 
   const toggleMobileMenu = () => {
@@ -21,26 +34,69 @@ export default function ClientLayout({
   };
 
   return (
-    <>
-      <header className="bg-white shadow-md border-b border-gray-200">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="flex flex-col min-h-screen bg-anti-flash-white">
+      <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between max-w-7xl">
           <div className="flex items-center space-x-2">
-            <Link href="/" className="text-xl font-bold text-gray-700 hover:text-gray-600">
+            <Link href="/" className="text-xl font-bold text-dubai-blue-900 hover:text-tuscany transition-colors">
               NAAZ
             </Link>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/" className="text-gray-700 hover:text-gray-900 font-medium">Dashboard</Link>
-            <Link href="/property-lookup" className="text-gray-700 hover:text-gray-900 font-medium">Property Lookup</Link>
-            <Link href="/rental" className="text-gray-700 hover:text-gray-900 font-medium">Rental Analysis</Link>
-            <Link href="/developer-analysis" className="text-gray-700 hover:text-gray-900 font-medium">Developer Analysis</Link>
-            <Link href="/demographics" className="text-gray-700 hover:text-gray-900 font-medium">Demographics</Link>
-            <Link href="/forecast" className="text-gray-700 hover:text-gray-900 font-medium">Price Forecast</Link>
-            <Link href="/settings" className="text-gray-700 hover:text-gray-900 font-medium">Settings</Link>
+            <Link 
+              href="/property-lookup" 
+              className={`transition-colors font-medium ${
+                currentPath === '/property-lookup' 
+                  ? 'text-tuscany border-b-2 border-tuscany pb-1' 
+                  : 'text-dubai-blue-700 hover:text-tuscany'
+              }`}
+            >
+              Property Lookup
+            </Link>
+            <Link 
+              href="/rental-analysis" 
+              className={`transition-colors font-medium ${
+                currentPath === '/rental-analysis' 
+                  ? 'text-tuscany border-b-2 border-tuscany pb-1' 
+                  : 'text-dubai-blue-700 hover:text-tuscany'
+              }`}
+            >
+              Rental Analysis
+            </Link>
+            <Link 
+              href="/developer-analysis" 
+              className={`transition-colors font-medium ${
+                currentPath === '/developer-analysis' 
+                  ? 'text-tuscany border-b-2 border-tuscany pb-1' 
+                  : 'text-dubai-blue-700 hover:text-tuscany'
+              }`}
+            >
+              Developer Analysis
+            </Link>
+            <Link 
+              href="/demographics" 
+              className={`transition-colors font-medium ${
+                currentPath === '/demographics' 
+                  ? 'text-tuscany border-b-2 border-tuscany pb-1' 
+                  : 'text-dubai-blue-700 hover:text-tuscany'
+              }`}
+            >
+              Demographics
+            </Link>
+            <Link 
+              href="/settings" 
+              className={`transition-colors font-medium ${
+                currentPath === '/settings' 
+                  ? 'text-tuscany border-b-2 border-tuscany pb-1' 
+                  : 'text-dubai-blue-700 hover:text-tuscany'
+              }`}
+            >
+              Settings
+            </Link>
           </nav>
           <div className="md:hidden">
             <button 
-              className="text-gray-700 hover:text-gray-900"
+              className="text-dubai-blue-900 hover:text-tuscany"
               aria-label="Mobile Menu"
               onClick={toggleMobileMenu}
             >
@@ -64,47 +120,55 @@ export default function ClientLayout({
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-gray-200 shadow-md">
+          <div className="md:hidden bg-white border-b border-gray-200 shadow-md absolute w-full z-50">
             <div className="container mx-auto px-4 py-3">
               <nav className="flex flex-col space-y-3">
-                <Link href="/" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Dashboard
-                </Link>
                 <Link href="/property-lookup" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
+                  className={`py-2 transition-colors ${
+                    currentPath === '/property-lookup' 
+                      ? 'text-tuscany font-medium' 
+                      : 'text-dubai-blue-700 hover:text-tuscany'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Property Lookup
                 </Link>
-                <Link href="/rental" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
+                <Link href="/rental-analysis" 
+                  className={`py-2 transition-colors ${
+                    currentPath === '/rental-analysis' 
+                      ? 'text-tuscany font-medium' 
+                      : 'text-dubai-blue-700 hover:text-tuscany'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Rental Analysis
                 </Link>
                 <Link href="/developer-analysis" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
+                  className={`py-2 transition-colors ${
+                    currentPath === '/developer-analysis' 
+                      ? 'text-tuscany font-medium' 
+                      : 'text-dubai-blue-700 hover:text-tuscany'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Developer Analysis
                 </Link>
                 <Link href="/demographics" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
+                  className={`py-2 transition-colors ${
+                    currentPath === '/demographics' 
+                      ? 'text-tuscany font-medium' 
+                      : 'text-dubai-blue-700 hover:text-tuscany'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Demographics
                 </Link>
-                <Link href="/forecast" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Price Forecast
-                </Link>
                 <Link href="/settings" 
-                  className="text-gray-700 hover:text-gray-900 font-medium py-2"
+                  className={`py-2 transition-colors ${
+                    currentPath === '/settings' 
+                      ? 'text-tuscany font-medium' 
+                      : 'text-dubai-blue-700 hover:text-tuscany'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Settings
@@ -114,14 +178,18 @@ export default function ClientLayout({
           </div>
         )}
       </header>
-      <main className="container mx-auto px-4 py-6">
-        {children}
+      
+      <main className="flex-grow">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          {children}
+        </div>
       </main>
-      <footer className="bg-white shadow-inner mt-8 border-t border-gray-200">
-        <div className="container mx-auto px-4 py-3 text-center text-sm text-gray-700">
-          &copy; {new Date().getFullYear()} NAAZ. All rights reserved.
+      
+      <footer className="bg-white shadow-inner border-t border-gray-200 mt-auto">
+        <div className="container mx-auto px-4 py-3 text-center text-sm text-dubai-blue-700 max-w-7xl">
+          &copy; {new Date().getFullYear()} NAAZ - Dubai Property Market Analysis. All rights reserved.
         </div>
       </footer>
-    </>
+    </div>
   );
 } 

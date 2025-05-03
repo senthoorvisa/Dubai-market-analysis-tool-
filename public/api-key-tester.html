@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI API Key Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #0077cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #005fa3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #e6ffed;
+            border: 1px solid #34d058;
+            color: #1e7e34;
+        }
+        .error {
+            background-color: #ffeef0;
+            border: 1px solid #d73a49;
+            color: #b31d28;
+        }
+        .loading {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            color: #6c757d;
+        }
+        code {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .hidden {
+            display: none;
+        }
+        #debugInfo {
+            margin-top: 20px;
+            font-size: 14px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenAI API Key Tester</h1>
+    <div class="container">
+        <p>Enter your OpenAI API key below to verify that it works correctly.</p>
+        
+        <label for="apiKey">API Key:</label>
+        <input type="text" id="apiKey" placeholder="sk-or-v1-..." autocomplete="off">
+        
+        <div>
+            <label for="model">Select Model:</label>
+            <select id="model">
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo (GPT-3.5)</option>
+                <option value="gpt-4o">gpt-4o (GPT-4o)</option>
+                <option value="gpt-4o-mini">gpt-4o-mini (GPT-4o Mini)</option>
+            </select>
+        </div>
+        <br>
+        
+        <button id="testButton" onclick="testApiKey()">Test API Key</button>
+        
+        <div id="result" class="hidden"></div>
+        
+        <div id="debugInfo" class="hidden"></div>
+    </div>
+
+    <script>
+        async function testApiKey() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const model = document.getElementById('model').value;
+            const resultDiv = document.getElementById('result');
+            const debugDiv = document.getElementById('debugInfo');
+            const testButton = document.getElementById('testButton');
+            
+            if (!apiKey) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = 'Please enter an API key';
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+            
+            // Show loading state
+            testButton.disabled = true;
+            resultDiv.className = 'loading';
+            resultDiv.textContent = 'Testing API key...';
+            resultDiv.classList.remove('hidden');
+            debugDiv.classList.add('hidden');
+            
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: 'Hello, this is a test. Please respond with "API key is working correctly!"'
+                            }
+                        ],
+                        max_tokens: 20
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Show debug information regardless of success/failure
+                debugDiv.textContent = `Status: ${response.status} ${response.statusText}\n\nResponse data:\n${JSON.stringify(data, null, 2)}`;
+                debugDiv.classList.remove('hidden');
+                
+                if (response.ok) {
+                    // API key is working
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `✅ Success! Your API key is working correctly.<br><br>
+                    Response from ${model}:<br>
+                    "${data.choices[0].message.content}"`;
+                    
+                    // Save to localStorage
+                    localStorage.setItem('openai_api_key', apiKey);
+                    
+                    // Show additional message about saving
+                    resultDiv.innerHTML += `<br><br>✓ API key has been saved to localStorage for use in this application.`;
+                } else {
+                    // API key is not working
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error?.message || 'Unknown error'}`;
+                    
+                    // Add helpful advice based on error type
+                    if (data.error?.type === 'invalid_request_error') {
+                        resultDiv.innerHTML += `<br><br>This might be due to:<br>
+                        - Incorrect API key format<br>
+                        - API key has been revoked<br>
+                        - The model "${model}" is not available for your account`;
+                    } else if (data.error?.type === 'authentication_error') {
+                        resultDiv.innerHTML += `<br><br>This indicates your API key is invalid or has been revoked.`;
+                    } else if (response.status === 429) {
+                        resultDiv.innerHTML += `<br><br>You have exceeded your API rate limit or have insufficient quota.`;
+                    }
+                }
+            } catch (error) {
+                // Network or other error
+                resultDiv.className = 'error';
+                resultDiv.textContent = `❌ Network Error: ${error.message}`;
+                
+                debugDiv.textContent = `Error details:\n${error.stack || error.toString()}`;
+                debugDiv.classList.remove('hidden');
+            } finally {
+                testButton.disabled = false;
+            }
+        }
+        
+        // Fill in API key from localStorage if available
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('openai_api_key');
+            if (savedKey) {
+                document.getElementById('apiKey').value = savedKey;
+            }
+            
+            // Auto-fill from URL parameter if present
+            const urlParams = new URLSearchParams(window.location.search);
+            const keyParam = urlParams.get('key');
+            if (keyParam) {
+                document.getElementById('apiKey').value = keyParam;
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,276 @@
+/* Dubai Theme Colors */
+:root {
+  --dubai-blue: #005DAA;
+  --dubai-blue-dark: #004A87;
+  --dubai-blue-light: #75A5D0;
+  --dubai-blue-50: #F0F5FA;
+  --dubai-blue-100: #D6E4F0;
+  --dubai-blue-900: #003B6F;
+  
+  --gold: #D4AF37;
+  --gold-dark: #B89229;
+  --gold-light: #E5CA6E;
+  --gold-50: #FCF8E8;
+  --gold-100: #F8F0D0;
+  --gold-200: #F1E4B4;
+  --gold-300: #E5CA6E;
+  --gold-400: #DABC51;
+  --gold-500: #D4AF37;
+  
+  /* New color palette */
+  --anti-flash-white: #F0F0F0;
+  --beige: #F0F0DC;
+  --tuscany: #C8A08C;
+  --almond: #F0DCC8;
+}
+
+/* Custom Component Styles */
+.luxury-card {
+  @apply bg-white border border-gray-200 rounded-lg overflow-hidden shadow-lg mb-6;
+}
+
+.luxury-card-modern {
+  @apply bg-anti-flash-white border border-almond rounded-lg overflow-hidden shadow-md mb-6;
+}
+
+.luxury-card-header {
+  @apply p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center;
+}
+
+.luxury-card-header-modern {
+  @apply p-4 border-b border-almond bg-beige flex justify-between items-center;
+}
+
+.luxury-card-body {
+  @apply p-6;
+}
+
+.luxury-kpi-tile {
+  @apply rounded-lg bg-white border border-gray-100 p-3 shadow-sm;
+}
+
+.luxury-kpi-tile-modern {
+  @apply rounded-lg bg-beige border border-almond p-4 shadow-sm;
+}
+
+.luxury-table {
+  @apply min-w-full border-collapse;
+}
+
+.luxury-table th {
+  @apply bg-gray-50 p-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider border-b border-gray-200;
+}
+
+.luxury-table td {
+  @apply p-3 border-b border-gray-200 text-sm text-gray-600;
+}
+
+.luxury-table tr:hover {
+  @apply bg-gold-50;
+}
+
+.luxury-table-modern {
+  @apply min-w-full border-collapse;
+}
+
+.luxury-table-modern th {
+  @apply bg-beige p-3 text-left text-xs font-medium text-dubai-blue-900 uppercase tracking-wider border-b border-almond;
+}
+
+.luxury-table-modern td {
+  @apply p-3 border-b border-almond text-sm text-dubai-blue-700;
+}
+
+.luxury-table-modern tr:hover {
+  @apply bg-beige;
+}
+
+/* Tailwind Extensions */
+.bg-dubai-blue {
+  background-color: var(--dubai-blue);
+}
+
+.bg-dubai-blue-dark {
+  background-color: var(--dubai-blue-dark);
+}
+
+.bg-dubai-blue-50 {
+  background-color: var(--dubai-blue-50);
+}
+
+.bg-dubai-blue-100 {
+  background-color: var(--dubai-blue-100);
+}
+
+.bg-gold-50 {
+  background-color: var(--gold-50);
+}
+
+.bg-gold-100 {
+  background-color: var(--gold-100);
+}
+
+.bg-gold-200 {
+  background-color: var(--gold-200);
+}
+
+.bg-gold-300 {
+  background-color: var(--gold-300);
+}
+
+.bg-anti-flash-white {
+  background-color: var(--anti-flash-white);
+}
+
+.bg-beige {
+  background-color: var(--beige);
+}
+
+.bg-tuscany {
+  background-color: var(--tuscany);
+}
+
+.bg-almond {
+  background-color: var(--almond);
+}
+
+.text-dubai-blue {
+  color: var(--dubai-blue);
+}
+
+.text-dubai-blue-dark {
+  color: var(--dubai-blue-dark);
+}
+
+.text-dubai-blue-900 {
+  color: var(--dubai-blue-900);
+}
+
+.text-gold-500 {
+  color: var(--gold-500);
+}
+
+.text-tuscany {
+  color: var(--tuscany);
+}
+
+.border-dubai-blue {
+  border-color: var(--dubai-blue);
+}
+
+.border-dubai-blue-100 {
+  border-color: var(--dubai-blue-100);
+}
+
+.border-gold-300 {
+  border-color: var(--gold-300);
+}
+
+.border-tuscany {
+  border-color: var(--tuscany);
+}
+
+.border-almond {
+  border-color: var(--almond);
+}
+
+.hover\:bg-dubai-blue-dark:hover {
+  background-color: var(--dubai-blue-dark);
+}
+
+.hover\:bg-tuscany:hover {
+  background-color: var(--tuscany);
+}
+
+.hover\:bg-beige:hover {
+  background-color: var(--beige);
+}
+
+.hover\:text-dubai-blue:hover {
+  color: var(--dubai-blue);
+}
+
+.hover\:text-dubai-blue-dark:hover {
+  color: var(--dubai-blue-dark);
+}
+
+.hover\:text-tuscany:hover {
+  color: var(--tuscany);
+}
+
+.hover\:border-gold-300:hover {
+  border-color: var(--gold-300);
+}
+
+.hover\:border-tuscany:hover {
+  border-color: var(--tuscany);
+}
+
+.focus\:ring-dubai-blue:focus {
+  --tw-ring-color: var(--dubai-blue);
+}
+
+.focus\:ring-tuscany:focus {
+  --tw-ring-color: var(--tuscany);
+}
+
+.focus\:border-dubai-blue:focus {
+  border-color: var(--dubai-blue);
+}
+
+.focus\:border-tuscany:focus {
+  border-color: var(--tuscany);
+}
+
+/* Button Styles */
+.btn-modern {
+  @apply px-4 py-2 bg-tuscany text-white rounded-md shadow-sm hover:bg-tuscany/90 transition-colors;
+}
+
+.btn-outline-modern {
+  @apply px-4 py-2 bg-transparent border border-tuscany text-tuscany rounded-md shadow-sm hover:bg-tuscany/10 transition-colors;
+}
+
+/* Mobile Responsive Table */
+@media (max-width: 768px) {
+  .responsive-table-container {
+    overflow-x: auto;
+  }
+  
+  .responsive-table {
+    display: block;
+  }
+  
+  .responsive-table thead {
+    display: none;
+  }
+  
+  .responsive-table tbody {
+    display: block;
+  }
+  
+  .responsive-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--almond);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  .responsive-table td {
+    display: flex;
+    padding: 0.5rem;
+    border: none;
+    text-align: right;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    margin-right: 0.5rem;
+    text-align: left;
+    color: var(--tuscany);
+  }
+} 

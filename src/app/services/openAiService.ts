@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
-import openai from './initOpenAi';
+import openai, { updateApiKey } from './initOpenAi';
+import apiKeyService from './apiKeyService';
+import { RentalFilter } from './rentalApiService';
 
 // Define response type for all API functions
 export interface ApiResponse<T = string> {
@@ -17,25 +19,77 @@ export interface PropertySearchCriteria {
   amenities?: string[];
 }
 
+interface OpenAICompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    text?: string;
+    message?: {
+      role: string;
+      content: string;
+    };
+    index: number;
+    logprobs: any;
+    finish_reason: string;
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+interface RentalSearchCriteria {
+  location?: string;
+  propertyType?: string;
+  bedrooms?: number;
+  propertyName?: string;
+}
+
+interface OpenAIResponse {
+  success: boolean;
+  data?: string;
+  error?: string;
+}
+
 // Safe content generation with error handling
 const safeGenerateContent = async (prompt: string): Promise<ApiResponse> => {
   try {
+    const apiKey = apiKeyService.getStoredApiKey();
+    if (!apiKey) {
+      return {
+        success: false,
+        error: 'API key not configured. Please configure your API key in settings.',
+      };
+    }
+
+    updateApiKey(apiKey);
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      messages: [
+        { role: 'system', content: 'You are a knowledgeable real estate market expert assistant.' },
+        { role: 'user', content: prompt }
+      ],
+      model: 'gpt-4-turbo',
+      temperature: 0.3,
       max_tokens: 1000,
     });
 
     return {
       success: true,
-      data: completion.choices[0]?.message?.content || ''
+      data: completion.choices[0].message.content || "",
     };
   } catch (error) {
     console.error('Error generating content:', error);
+    let errorMessage = 'An unknown error occurred';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
+      error: errorMessage,
     };
   }
 };
@@ -119,46 +173,70 @@ Base your analysis on current Dubai real estate market data, referencing the Dub
 }
 
 // Get rental market information
-export async function getRentalMarketInfo(criteria: {
-  location?: string;
-  propertyType?: string;
-  bedrooms?: number;
-}): Promise<ApiResponse> {
+export async function getRentalMarketInfo(criteria: RentalSearchCriteria): Promise<ApiResponse> {
   try {
-    let prompt = `You are a Dubai real estate market expert assistant. Please provide detailed information about the current rental market in Dubai for properties with the following criteria:\n\n`;
+    const apiKey = apiKeyService.getStoredApiKey();
+    
+    if (!apiKey) {
+      return {
+        success: false,
+        error: 'API key not configured. Please set up your OpenAI API key to use this feature.'
+      };
+    }
+    
+    // Construct the prompt for OpenAI
+    let prompt = `I need accurate, up-to-date rental price information for properties in Dubai. `;
     
     if (criteria.location) {
-      prompt += `Location: ${criteria.location}\n`;
-    }
-    if (criteria.propertyType) {
-      prompt += `Property Type: ${criteria.propertyType}\n`;
-    }
-    if (criteria.bedrooms) {
-      prompt += `Bedrooms: ${criteria.bedrooms}\n`;
-    }
-
-    prompt += `\nFor this rental market analysis, please provide:
-1. Current average rental prices for this type of property
-2. Rental yield percentages and ROI potential
-3. Rental demand trends over the past year
-4. Forecasted changes in rental prices for the next 12 months
-5. Popular rental terms and conditions
-6. Suggestions for landlords to maximize rental income
-7. Legal considerations for renting in this area
-
-Base your analysis on current Dubai real estate market data, referencing the Dubai Land Department records and Rental Index where possible.`;
-
-    return await safeGenerateContent(prompt);
-  } catch (error) {
-    console.error('Error in getRentalMarketInfo:', error);
-    let errorMessage = 'An unknown error occurred';
-    if (error instanceof Error) {
-      errorMessage = error.message;
+      prompt += `Area: ${criteria.location}. `;
     }
     
+    if (criteria.propertyName) {
+      prompt += `Specifically, I'm looking for rental prices for "${criteria.propertyName}". `;
+    }
+    
+    if (criteria.propertyType) {
+      prompt += `Property type: ${criteria.propertyType}. `;
+    }
+    
+    if (criteria.bedrooms !== undefined) {
+      prompt += `Bedrooms: ${criteria.bedrooms === 0 ? 'Studio' : criteria.bedrooms}. `;
+    }
+    
+    prompt += `Please provide:
+    1. Current average rental prices (in AED/year)
+    2. Price ranges based on actual listings
+    3. Trends in this area over the past 3-6 months
+    4. Price comparison with similar properties in nearby areas
+    
+    Ensure all information is based on actual current rental market data, not estimates. Cite current rental prices from specific properties whenever possible.`;
+    
+    updateApiKey(apiKey);
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { 
+          role: 'system', 
+          content: `You are a Dubai real estate expert specializing in rental property analysis. 
+          Provide accurate, detailed, and specific rental price information based on current market data.
+          Use concrete figures, actual listings, and avoid vague statements or broad ranges when possible.
+          Format your response with clear sections and bullet points for readability.` 
+        },
+        { role: 'user', content: prompt }
+      ],
+      model: 'gpt-4-turbo',
+      temperature: 0.3,
+      max_tokens: 750,
+    });
+
+    return {
+      success: true,
+      data: completion.choices[0].message.content || "",
+    };
+  } catch (error) {
+    console.error('Error fetching rental market information:', error);
     return {
       success: false,
-      error: errorMessage,
+      error: `Failed to fetch rental information: ${error instanceof Error ? error.message : 'Unknown error'}`
     };
   }
 }
@@ -182,6 +260,37 @@ Base your forecast on current Dubai real estate market data and trends, referenc
     return await safeGenerateContent(prompt);
   } catch (error) {
     console.error('Error in getMarketForecast:', error);
+    let errorMessage = 'An unknown error occurred';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+// Get demographic information for a location
+export async function getDemographicInfo(location: string): Promise<ApiResponse> {
+  try {
+    const prompt = `You are a Dubai real estate market expert assistant. Please provide detailed demographic information about ${location} in Dubai.
+
+Please include:
+1. Population statistics (total population, density, growth rate)
+2. Resident demographics (age distribution, nationality breakdown, income levels)
+3. Infrastructure and facilities (schools, hospitals, shopping, public transport)
+4. Lifestyle and community features
+5. Typical resident profiles (professionals, families, tourists, etc.)
+6. How demographics affect property values and rental demand
+7. Future development plans that might impact demographics
+
+Base your analysis on current Dubai demographic data, referencing official statistics where possible.`;
+
+    return await safeGenerateContent(prompt);
+  } catch (error) {
+    console.error('Error in getDemographicInfo:', error);
     let errorMessage = 'An unknown error occurred';
     if (error instanceof Error) {
       errorMessage = error.message;
@@ -230,10 +339,29 @@ export async function getDubaiLandInfo(infoType: 'projects' | 'regulations' | 't
 }
 
 // Initialize the API with the provided key
-export function initWithApiKey(apiKey: string): boolean {
+export function initWithApiKey(apiKey: string, orgId?: string): boolean {
   try {
     if (!apiKey || apiKey.length < 20) {
+      console.error('Invalid API key format');
       return false;
+    }
+    
+    // Use HTTPS for all API calls
+    if (!apiKey.startsWith('sk-')) {
+      console.error('Invalid API key format: must start with "sk-"');
+      return false;
+    }
+    
+    // Update the OpenAI instance with the new key
+    updateApiKey(apiKey, orgId);
+    
+    // Store API key in localStorage for persistence
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('openai_api_key', apiKey);
+      
+      // Store API usage timestamp for rotation tracking
+      const now = new Date().toISOString();
+      localStorage.setItem('openai_key_last_used', now);
     }
     
     return true;
@@ -241,4 +369,76 @@ export function initWithApiKey(apiKey: string): boolean {
     console.error('Error initializing OpenAI with key:', error);
     return false;
   }
-} 
+}
+
+const openAiService = {
+  getRentalMarketInfo: async (criteria: RentalSearchCriteria): Promise<ApiResponse> => {
+    try {
+      const apiKey = apiKeyService.getStoredApiKey();
+      
+      if (!apiKey) {
+        return {
+          success: false,
+          error: 'API key not configured. Please set up your OpenAI API key to use this feature.'
+        };
+      }
+      
+      // Construct the prompt for OpenAI
+      let prompt = `I need accurate, up-to-date rental price information for properties in Dubai. `;
+      
+      if (criteria.location) {
+        prompt += `Area: ${criteria.location}. `;
+      }
+      
+      if (criteria.propertyName) {
+        prompt += `Specifically, I'm looking for rental prices for "${criteria.propertyName}". `;
+      }
+      
+      if (criteria.propertyType) {
+        prompt += `Property type: ${criteria.propertyType}. `;
+      }
+      
+      if (criteria.bedrooms !== undefined) {
+        prompt += `Bedrooms: ${criteria.bedrooms === 0 ? 'Studio' : criteria.bedrooms}. `;
+      }
+      
+      prompt += `Please provide:
+      1. Current average rental prices (in AED/year)
+      2. Price ranges based on actual listings
+      3. Trends in this area over the past 3-6 months
+      4. Price comparison with similar properties in nearby areas
+      
+      Ensure all information is based on actual current rental market data, not estimates. Cite current rental prices from specific properties whenever possible.`;
+      
+      updateApiKey(apiKey);
+      const completion = await openai.chat.completions.create({
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a Dubai real estate expert specializing in rental property analysis. 
+            Provide accurate, detailed, and specific rental price information based on current market data.
+            Use concrete figures, actual listings, and avoid vague statements or broad ranges when possible.
+            Format your response with clear sections and bullet points for readability.` 
+          },
+          { role: 'user', content: prompt }
+        ],
+        model: 'gpt-4-turbo',
+        temperature: 0.3,
+        max_tokens: 750,
+      });
+
+      return {
+        success: true,
+        data: completion.choices[0].message.content || "",
+      };
+    } catch (error) {
+      console.error('Error fetching rental market information:', error);
+      return {
+        success: false,
+        error: `Failed to fetch rental information: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+};
+
+export default openAiService; 

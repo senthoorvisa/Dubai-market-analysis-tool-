@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDemographicAnalysis } from '../hooks/useDemographicAnalysis';
 import { DemographicData, InfrastructureProject } from '../interfaces/demographics';
+import { getDemographicInfo } from '../services/openAiService';
+import ApiKeyInput from './ApiKeyInput';
+import apiKeyService from '../services/apiKeyService';
 
 const DemographicAnalysis: React.FC = () => {
   const {
@@ -21,18 +24,46 @@ const DemographicAnalysis: React.FC = () => {
     fetchMarketNews
   } = useDemographicAnalysis();
 
-  const [apiKey, setLocalApiKey] = useState<string>('');
+  const [localApiKey, setLocalApiKey] = useState<string>('');
   const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState<boolean>(false);
+  const [aiLoading, setAiLoading] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check if API key is configured on component mount
+    const hasApiKey = apiKeyService.isApiKeyConfigured();
+    setIsApiKeyConfigured(hasApiKey);
+  }, []);
+
+  const handleApiKeySet = (success: boolean) => {
+    setIsApiKeyConfigured(success);
+    if (success) {
+      setShowApiKeyInput(false);
+      // Update the hook's API key
+      setApiKey(apiKeyService.getStoredApiKey() || '');
+    }
+  };
 
   // Handle search button click
   const handleSearch = () => {
+    if (!location.trim()) {
+      return;
+    }
+
     fetchDemographicData();
     fetchInfrastructureAnalysis();
+    
+    // Also get AI analysis if API key is configured
+    if (isApiKeyConfigured) {
+      fetchAIDemographics();
+    }
   };
 
   // Handle API key submission
   const handleApiKeySubmit = () => {
-    setApiKey(apiKey);
+    setApiKey(localApiKey);
     fetchMarketNews();
   };
 
@@ -41,9 +72,96 @@ const DemographicAnalysis: React.FC = () => {
     fetchWealthComparison();
   };
 
+  // Get AI-powered demographic analysis
+  const fetchAIDemographics = async () => {
+    if (!location.trim()) {
+      setAiError('Location is required');
+      return;
+    }
+    
+    if (!isApiKeyConfigured) {
+      setShowApiKeyInput(true);
+      setAiError('Please configure your OpenAI API key to use this feature');
+      return;
+    }
+    
+    setAiLoading(true);
+    setAiError(null);
+    
+    try {
+      const response = await getDemographicInfo(location);
+      if (response.success && response.data) {
+        setAiAnalysis(response.data);
+      } else {
+        throw new Error(response.error || 'Failed to get demographic information');
+      }
+    } catch (err) {
+      let errorMessage = 'Failed to generate AI analysis. Please try again later.';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setAiError(errorMessage);
+      
+      // If error is related to API key, show API key input
+      if (errorMessage.includes('API key') || errorMessage.includes('authentication')) {
+        setIsApiKeyConfigured(false);
+        setShowApiKeyInput(true);
+      }
+      
+      console.error('Error generating AI demographic analysis:', err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Format the AI analysis with line breaks
+  const formatAnalysis = (text: string) => {
+    if (!text) return [];
+    return text.split('\n').map((line, index) => (
+      <p key={index} className={`mb-2 ${line.trim().startsWith('#') ? 'font-bold text-lg mt-4' : ''}`}>
+        {line}
+      </p>
+    ));
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Demographic & Infrastructure Analysis</h2>
+
+      {/* API Key Configuration */}
+      {showApiKeyInput && (
+        <div className="mb-6">
+          <ApiKeyInput 
+            onApiKeySet={handleApiKeySet}
+            className="mb-4"
+          />
+          {isApiKeyConfigured && (
+            <button
+              onClick={() => setShowApiKeyInput(false)}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Hide API Key Settings
+            </button>
+          )}
+        </div>
+      )}
+      
+      {!showApiKeyInput && !isApiKeyConfigured && (
+        <div className="mb-6 bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+          <p className="text-yellow-800 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            You need to configure your OpenAI API key for enhanced demographic analysis. 
+            <button 
+              onClick={() => setShowApiKeyInput(true)}
+              className="ml-2 underline text-blue-600 hover:text-blue-800"
+            >
+              Configure API Key
+            </button>
+          </p>
+        </div>
+      )}
 
       {/* Search Form */}
       <div className="mb-8 bg-neutral-50 rounded-lg p-4 border border-neutral-100">
@@ -65,18 +183,28 @@ const DemographicAnalysis: React.FC = () => {
             <button
               className="w-full md:w-auto px-4 py-2 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-opacity-50 disabled:opacity-50"
               onClick={handleSearch}
-              disabled={isLoading || !location.trim()}
+              disabled={isLoading || aiLoading || !location.trim()}
             >
-              {isLoading ? 'Loading...' : 'Analyze Demographics'}
+              {isLoading || aiLoading ? 'Loading...' : 'Analyze Demographics'}
             </button>
           </div>
         </div>
       </div>
 
       {/* Error Message */}
-      {error && (
+      {(error || aiError) && (
         <div className="mb-6 p-3 bg-red-100 text-red-700 rounded-md border border-red-200">
-          {error}
+          {error || aiError}
+        </div>
+      )}
+
+      {/* AI Analysis */}
+      {aiAnalysis && (
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">AI-Powered Analysis: {location}</h3>
+          <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm prose prose-lg max-w-none">
+            {formatAnalysis(aiAnalysis)}
+          </div>
         </div>
       )}
 
@@ -109,36 +237,27 @@ const DemographicAnalysis: React.FC = () => {
               </div>
 
               <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <h4 className="font-medium mb-2 text-gray-800">Wealth Distribution</h4>
-                <div className="space-y-2 text-gray-700">
-                  <p>
-                    <span className="font-medium">High-Net-Worth Individuals:</span>{' '}
-                    {demographicData.wealthDistribution.highNetWorth.toLocaleString()}
-                  </p>
-                  <p>
-                    <span className="font-medium">Ultra-High-Net-Worth:</span>{' '}
-                    {demographicData.wealthDistribution.ultraHighNetWorth.toLocaleString()}
-                  </p>
-                  <p>
-                    <span className="font-medium">Billionaires:</span>{' '}
-                    {demographicData.wealthDistribution.billionaires}
-                  </p>
-                  <p>
-                    <span className="font-medium">Wealthy Percentage:</span>{' '}
-                    <span className="text-neutral-600">{demographicData.wealthDistribution.percentageOfWealthy}%</span>
-                  </p>
-                </div>
-                
-                {/* Visual representation of wealth */}
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div className="bg-neutral-600 h-2.5 rounded-full" style={{ width: `${demographicData.wealthDistribution.percentageOfWealthy}%` }}></div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>0%</span>
-                    <span>Wealth Distribution</span>
-                    <span>100%</span>
-                  </div>
+                <h4 className="font-medium mb-2 text-gray-800">Nationality Breakdown</h4>
+                <div className="space-y-1">
+                  {demographicData.nationalities && Object.entries(demographicData.nationalities).map(([nationality, percentage]) => (
+                    <div key={nationality} className="flex justify-between items-center text-sm">
+                      <span>{nationality}</span>
+                      <div className="flex-grow mx-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-indigo-500 h-2 rounded-full"
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <span className="text-gray-700">{percentage}%</span>
+                    </div>
+                  ))}
+                  {!demographicData.nationalities && (
+                    <div className="text-gray-500 text-sm">
+                      Nationality data not available for this location.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -173,165 +292,94 @@ const DemographicAnalysis: React.FC = () => {
                     <span>{demographicData.ageDistribution.age36to50}%</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">51-65:</span>
+                    <span className="font-medium">51+:</span>
                     <div className="flex-grow mx-2">
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-orange-500 h-2 rounded-full" style={{ width: `${demographicData.ageDistribution.age51to65}%` }}></div>
+                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${demographicData.ageDistribution.above50}%` }}></div>
                       </div>
                     </div>
-                    <span>{demographicData.ageDistribution.age51to65}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Above 65:</span>
-                    <div className="flex-grow mx-2">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${demographicData.ageDistribution.above65}%` }}></div>
-                      </div>
-                    </div>
-                    <span>{demographicData.ageDistribution.above65}%</span>
+                    <span>{demographicData.ageDistribution.above50}%</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Historical Trends */}
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-3 text-gray-800">5-Year Historical Trends</h3>
-            <div className="overflow-x-auto bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="px-4 py-2 text-left text-gray-700">Year</th>
-                    <th className="px-4 py-2 text-left text-gray-700">Population</th>
-                    <th className="px-4 py-2 text-left text-gray-700">High-Net-Worth</th>
-                    <th className="px-4 py-2 text-left text-gray-700">Average Income</th>
-                    <th className="px-4 py-2 text-left text-gray-700">YoY Growth</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {demographicData.historicalTrend.map((trend, index) => {
-                    // Calculate YoY growth - if it's the first row, there's no previous year to compare to
-                    const prevYear = index > 0 ? demographicData.historicalTrend[index - 1] : null;
-                    const yoyGrowth = prevYear
-                      ? ((trend.population - prevYear.population) / prevYear.population) * 100
-                      : null;
-
-                    return (
-                      <tr key={trend.year} className="border-t border-gray-200 hover:bg-gray-50">
-                        <td className="px-4 py-2 text-gray-700">{trend.year}</td>
-                        <td className="px-4 py-2 text-gray-700">{trend.population.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-gray-700">{trend.highNetWorthCount.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-gray-700">{formatCurrency(trend.averageIncome)}</td>
-                        <td className="px-4 py-2">
-                          {yoyGrowth !== null ? (
-                            <span className={yoyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}>
-                              {yoyGrowth >= 0 ? '+' : ''}
-                              {yoyGrowth.toFixed(1)}%
-                            </span>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Wealth Comparison with Other Areas */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xl font-semibold text-gray-800">Wealth Comparison with Other Areas</h3>
-              {!wealthComparison && (
-                <button
-                  className="px-4 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-                  onClick={handleFetchWealthComparison}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Loading...' : 'Compare Areas'}
-                </button>
-              )}
-            </div>
-
-            {wealthComparison ? (
-              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="px-4 py-2 text-left text-gray-700">Location</th>
-                        <th className="px-4 py-2 text-left text-gray-700">High-Net-Worth</th>
-                        <th className="px-4 py-2 text-left text-gray-700">Ultra-High-Net-Worth</th>
-                        <th className="px-4 py-2 text-left text-gray-700">Billionaires</th>
-                        <th className="px-4 py-2 text-left text-gray-700">Wealthy %</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(wealthComparison).map(([location, data]: [string, any]) => (
-                        <tr
-                          key={location}
-                          className={`border-t border-gray-200 hover:bg-gray-50 ${
-                            location === demographicData.location
-                              ? 'bg-green-50'
-                              : ''
-                          }`}
-                        >
-                          <td className="px-4 py-2 font-medium text-gray-700">{location}</td>
-                          <td className="px-4 py-2 text-gray-700">{data.highNetWorth.toLocaleString()}</td>
-                          <td className="px-4 py-2 text-gray-700">{data.ultraHighNetWorth.toLocaleString()}</td>
-                          <td className="px-4 py-2 text-gray-700">{data.billionaires}</td>
-                          <td className="px-4 py-2 text-green-600 font-medium">{data.percentageOfWealthy}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg p-4 text-center border border-gray-200 shadow-sm">
-                <p className="text-gray-500">Click "Compare Areas" to see how {demographicData.location} compares to other areas.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Infrastructure Projects */}
+          {/* Infrastructure Section (if available) */}
           {infrastructureAnalysis && (
             <div className="mb-8">
-              <h3 className="text-xl font-semibold mb-3 text-gray-800">Infrastructure Projects</h3>
-              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="mb-4">
-                  <p className="mb-2 text-gray-700">
-                    <span className="font-medium">Total Projects:</span> {infrastructureAnalysis.totalProjects}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-green-50 p-3 rounded border border-green-100">
-                      <p className="font-medium text-gray-700">Short-Term Impact (1 year)</p>
-                      <p className="text-green-600 font-bold text-xl">
-                        +{infrastructureAnalysis.valueImpactAnalysis.shortTerm}%
-                      </p>
-                    </div>
-                    <div className="bg-blue-50 p-3 rounded border border-blue-100">
-                      <p className="font-medium text-gray-700">Medium-Term Impact (3 years)</p>
-                      <p className="text-blue-600 font-bold text-xl">
-                        +{infrastructureAnalysis.valueImpactAnalysis.mediumTerm}%
-                      </p>
-                    </div>
-                    <div className="bg-purple-50 p-3 rounded border border-purple-100">
-                      <p className="font-medium text-gray-700">Long-Term Impact (5 years)</p>
-                      <p className="text-purple-600 font-bold text-xl">
-                        +{infrastructureAnalysis.valueImpactAnalysis.longTerm}%
-                      </p>
-                    </div>
+              <h3 className="text-xl font-semibold mb-3 text-gray-800">Infrastructure Analysis</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Projects */}
+                <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                  <h4 className="font-medium mb-3 text-gray-800">Major Infrastructure Projects</h4>
+                  
+                  <div className="space-y-3">
+                    {infrastructureAnalysis.projects.map((project, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-gray-800">{project.name}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            project.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                            project.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {project.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{project.description}</p>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>Completion: {project.estimatedCompletion}</span>
+                          <span>Impact: <span className="text-green-600">+{project.estimatedImpact}%</span></span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
-                <h4 className="font-medium mb-3 text-gray-800">Project Details</h4>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {infrastructureAnalysis.projects.map((project) => (
-                    <InfrastructureProjectCard key={project.id} project={project} />
+                
+                {/* Transportation */}
+                <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                  <h4 className="font-medium mb-3 text-gray-800">Transportation & Connectivity</h4>
+                  
+                  <div className="space-y-3">
+                    {infrastructureAnalysis.transportation.map((item, index) => (
+                      <div key={index} className="flex items-start space-x-2">
+                        <div className={`p-1 rounded-full ${
+                          item.type === 'Metro' ? 'bg-red-100 text-red-800' :
+                          item.type === 'Bus' ? 'bg-blue-100 text-blue-800' :
+                          item.type === 'Road' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7l4-4m0 0l4 4m-4-4v18" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                          <p className="text-xs text-gray-600">{item.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Urban Facilities */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                <h4 className="font-medium mb-3 text-gray-800">Urban Facilities</h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {infrastructureAnalysis.urbanFacilities.map((facility, index) => (
+                    <div key={index} className="text-center">
+                      <div className="flex items-center justify-center bg-gray-100 rounded-full w-12 h-12 mx-auto mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                      </div>
+                      <p className="font-medium text-sm text-gray-800">{facility.type}</p>
+                      <p className="text-xs text-gray-600">{facility.count} within 3km</p>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -339,146 +387,46 @@ const DemographicAnalysis: React.FC = () => {
           )}
 
           {/* Market News Section */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xl font-semibold text-gray-800">Market News & Updates</h3>
-              <button
-                className="text-sm text-green-600 hover:underline focus:outline-none"
-                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              >
-                {showApiKeyInput ? 'Hide API Settings' : 'Configure API'}
-              </button>
-            </div>
-
-            {showApiKeyInput && (
-              <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200 shadow-sm">
-                <label className="block text-sm font-medium mb-1 text-gray-700" htmlFor="apiKey">
-                  ChatGPT API Key
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="apiKey"
-                    type="password"
-                    className="flex-grow p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Enter your ChatGPT API key"
-                    value={apiKey}
-                    onChange={(e) => setLocalApiKey(e.target.value)}
-                  />
-                  <button
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-                    onClick={handleApiKeySubmit}
-                    disabled={isLoading || !apiKey.trim()}
-                  >
-                    {isLoading ? 'Loading...' : 'Fetch Market News'}
-                  </button>
-                </div>
-                <p className="text-xs mt-1 text-gray-500">
-                  Your API key is required to fetch real-time market news for this area.
-                </p>
+          {isApiKeyConfigured && (
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-xl font-semibold text-gray-800">Market News & Updates</h3>
+                <button
+                  className="text-sm text-green-600 hover:underline focus:outline-none"
+                  onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                >
+                  {showApiKeyInput ? 'Hide API Settings' : 'Configure API'}
+                </button>
               </div>
-            )}
 
-            {marketNews ? (
               <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <h4 className="font-medium mb-3 text-gray-800">Market News Summary</h4>
-                <ul className="space-y-2">
-                  {marketNews.map((item, index) => (
-                    <li key={index} className="p-2 hover:bg-gray-50 rounded text-gray-700">
-                      <div className="flex items-start">
-                        <span className="inline-block w-3 h-3 bg-green-500 rounded-full mr-2 mt-1.5"></span>
-                        <span>{item}</span>
+                {marketNews && marketNews.length > 0 ? (
+                  <div className="space-y-3">
+                    {marketNews.map((news, index) => (
+                      <div key={index} className="border-l-4 border-green-500 pl-3 py-1">
+                        <p className="text-gray-800">{news}</p>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <p className="text-gray-600">Click "Analyze Demographics" to fetch latest market news for this location.</p>
+                    <button
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
+                      onClick={fetchMarketNews}
+                      disabled={isLoading || !location.trim() || !isApiKeyConfigured}
+                    >
+                      Fetch News
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-white rounded-lg p-4 text-center border border-gray-200 shadow-sm">
-                <p className="text-gray-500">Enter your API key to fetch the latest market news for {demographicData.location}.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
-};
-
-// Infrastructure Project Card Component
-const InfrastructureProjectCard: React.FC<{ project: InfrastructureProject }> = ({ project }) => {
-  function getStatusColor(status: string) {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'planned':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  }
-
-  function getTypeColor(type: string) {
-    switch (type) {
-      case 'transport':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'residential':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'commercial':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'mixed':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  }
-
-  return (
-    <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <h4 className="font-semibold mb-1 text-gray-800">{project.name}</h4>
-      <div className="flex flex-wrap gap-2 mb-2">
-        <span className={`px-2 py-1 rounded-full text-xs border ${getTypeColor(project.type)}`}>
-          {project.type.charAt(0).toUpperCase() + project.type.slice(1)}
-        </span>
-        <span className={`px-2 py-1 rounded-full text-xs border ${getStatusColor(project.status)}`}>
-          {project.status === 'in_progress' ? 'In Progress' : project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-        </span>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-2 mb-2 text-sm text-gray-600">
-        <p>
-          <span className="font-medium">Start:</span> {formatDate(project.startDate)}
-        </p>
-        <p>
-          <span className="font-medium">Completion:</span> {formatDate(project.completionDate)}
-        </p>
-        <p>
-          <span className="font-medium">Est. Cost:</span> {formatCurrency(project.estimatedCost)}
-        </p>
-        <p>
-          <span className="font-medium">Value Impact:</span>{' '}
-          <span className="text-green-600">+{project.estimatedImpact}%</span>
-        </p>
-      </div>
-      
-      <p className="text-sm text-gray-700">{project.description}</p>
-    </div>
-  );
-};
-
-// Helper functions for formatting
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-AE', {
-    style: 'currency',
-    currency: 'AED',
-    maximumFractionDigits: 0
-  }).format(amount);
-};
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-AE', { year: 'numeric', month: 'short' });
 };
 
 export default DemographicAnalysis; 

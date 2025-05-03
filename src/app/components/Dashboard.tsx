@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePropertyLookup } from '../hooks/usePropertyLookup';
 import { useDemographicAnalysis } from '../hooks/useDemographicAnalysis';
 import { useForecastAnalysis } from '../hooks/useForecastAnalysis';
@@ -8,10 +8,12 @@ import { PropertyLookupResult } from '../interfaces/property';
 import { DemographicData } from '../interfaces/demographics';
 import { PropertyForecast } from '../interfaces/property';
 import ChatGptTester from './ChatGptTester';
+import ApiKeyInput from './ApiKeyInput';
+import apiKeyService from '../services/apiKeyService';
 
 const Dashboard: React.FC = () => {
-  const [apiKey, setApiKey] = useState<string>('');
   const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState<boolean>(false);
   
   // Initialize hooks with empty values
   const propertyLookup = usePropertyLookup();
@@ -20,6 +22,20 @@ const Dashboard: React.FC = () => {
   
   // Define search location for quick search
   const [quickSearchLocation, setQuickSearchLocation] = useState<string>('');
+
+  useEffect(() => {
+    // Check if API key is configured on component mount
+    const hasApiKey = apiKeyService.isApiKeyConfigured();
+    setIsApiKeyConfigured(hasApiKey);
+    
+    // If API key is available, update the demographic analysis hook
+    if (hasApiKey) {
+      const apiKey = apiKeyService.getStoredApiKey();
+      if (apiKey) {
+        demographicAnalysis.setApiKey(apiKey);
+      }
+    }
+  }, []);
   
   // Handle quick search submission
   const handleQuickSearch = () => {
@@ -35,15 +51,28 @@ const Dashboard: React.FC = () => {
     demographicAnalysis.fetchDemographicData();
     demographicAnalysis.fetchInfrastructureAnalysis();
     forecastAnalysis.generateComparativeForecasts();
+    
+    // If API key is configured, fetch market news as well
+    if (isApiKeyConfigured) {
+      demographicAnalysis.fetchMarketNews();
+    }
   };
   
-  // Handle API key submission
-  const handleApiKeySubmit = () => {
-    demographicAnalysis.setApiKey(apiKey);
+  // Handle API key setting
+  const handleApiKeySet = (success: boolean) => {
+    setIsApiKeyConfigured(success);
     
-    // Fetch market news if location is available
-    if (demographicAnalysis.location) {
-      demographicAnalysis.fetchMarketNews();
+    if (success) {
+      // If API key is set successfully, update the demographic analysis hook
+      const apiKey = apiKeyService.getStoredApiKey();
+      if (apiKey) {
+        demographicAnalysis.setApiKey(apiKey);
+        
+        // If location is already set, fetch market news
+        if (demographicAnalysis.location) {
+          demographicAnalysis.fetchMarketNews();
+        }
+      }
     }
   };
 
@@ -80,7 +109,7 @@ const Dashboard: React.FC = () => {
         
         <div className="api-container">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="text-xl font-semibold text-gray-800">ChatGPT Integration</h2>
+            <h2 className="text-xl font-semibold text-gray-800">OpenAI Integration</h2>
             <button
               className="text-sm text-green-600 hover:underline focus:outline-none hover-lift"
               onClick={() => setShowApiKeyInput(!showApiKeyInput)}
@@ -90,46 +119,23 @@ const Dashboard: React.FC = () => {
           </div>
           
           {showApiKeyInput ? (
-            <div>
-              <p className="text-sm text-gray-600 mb-2">
-                Enter your OpenAI API key to unlock real-time market data and deep search capabilities.
-              </p>
-              <input
-                type="password"
-                className="w-full p-2 border border-gray-300 rounded-md bg-white mb-2"
-                placeholder="Enter ChatGPT API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <button
-                className="btn-primary w-full"
-                onClick={handleApiKeySubmit}
-                disabled={!apiKey.trim()}
-              >
-                Save API Key
-              </button>
-              <p className="text-xs text-gray-500 mt-2">
-                Your API key is stored locally in your browser and never sent to our servers.
-              </p>
-            </div>
+            <ApiKeyInput 
+              onApiKeySet={handleApiKeySet}
+              showInitialMessage={false}
+            />
           ) : (
             <div>
               <p className="text-sm text-gray-600 mb-2">
-                Connect your ChatGPT API key for real-time market data, developer news, and property insights.
+                Connect your OpenAI API key for real-time market data, developer news, and property insights.
               </p>
               <div className="flex items-center text-sm text-gray-600">
-                <span className={`h-2 w-2 rounded-full mr-2 ${apiKey ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                <span>{apiKey ? 'API Key Connected' : 'API Key Not Connected'}</span>
+                <span className={`h-2 w-2 rounded-full mr-2 ${isApiKeyConfigured ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                <span>{isApiKeyConfigured ? 'API Key Connected' : 'API Key Not Connected'}</span>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* ChatGPT Tester */}
-      {apiKey && (
-        <ChatGptTester apiKey={apiKey} />
-      )}
 
       {/* Main Dashboard Content */}
       {propertyLookup.propertyData || demographicAnalysis.demographicData || forecastAnalysis.forecast ? (
