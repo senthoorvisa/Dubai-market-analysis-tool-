@@ -2,20 +2,13 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaArrowLeft } from 'react-icons/fa';
 import PropertyLookupRefined from '../components/PropertyLookupRefined';
 
 export default function PropertyLookupPage() {
   return (
     <div className="min-h-screen bg-anti-flash-white">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <Link href="/" className="mr-4 text-tuscany hover:text-tuscany/70 transition-colors">
-              <FaArrowLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-3xl font-bold text-dubai-blue-900">Property Lookup</h1>
-          </div>
+        <div className="flex justify-end mb-6">
           <Link href="/" className="flex items-center">
             <Image
               src="/naaz-logo.svg"

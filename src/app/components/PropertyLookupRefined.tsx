@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { 
   FaArrowLeft, FaSearch, FaSpinner, FaHome, FaBed, FaBath, 
   FaRulerCombined, FaBuilding, FaCalendarAlt, FaChartLine,
-  FaMapMarkerAlt, FaTag, FaExternalLinkAlt, FaChevronRight, FaChevronLeft
+  FaMapMarkerAlt, FaTag, FaExternalLinkAlt, FaChevronRight, FaChevronLeft,
+  FaFilter
 } from 'react-icons/fa';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer, ReferenceLine, BarChart, Bar
 } from 'recharts';
+import { getPropertyInfo } from '../services/openAiService';
+import apiKeyService from '../services/apiKeyService';
 
 // Mocked API response structure (will be replaced with real API calls)
 interface PricePoint {
@@ -100,15 +103,66 @@ function generatePopularProjects(developerName: string) {
   return projects;
 }
 
+// Define property search criteria
+interface PropertySearchCriteria {
+  location?: string;
+  propertyType?: string;
+  bedrooms?: number;
+  priceRange?: string;
+  amenities?: string[];
+}
+
+// Dubai locations for dropdown
+const dubaiLocations = [
+  'Dubai Marina',
+  'Downtown Dubai',
+  'Palm Jumeirah',
+  'Jumeirah Beach Residence',
+  'Business Bay',
+  'Dubai Hills Estate',
+  'Jumeirah Lake Towers',
+  'Arabian Ranches',
+  'Mirdif',
+  'Damac Hills',
+  'Dubai Silicon Oasis',
+  'International City',
+  'Dubai Sports City',
+  'Emirates Hills',
+  'Jumeirah Village Circle'
+];
+
+// Property types for dropdown
+const propertyTypes = [
+  'Apartment',
+  'Villa',
+  'Townhouse',
+  'Penthouse',
+  'Duplex',
+  'Studio',
+  'Office',
+  'Commercial Space',
+  'Retail Shop',
+  'Plot/Land'
+];
+
+// Bedroom options
+const bedroomOptions = ['Studio', '1', '2', '3', '4', '5+'];
+
 export default function PropertyLookupRefined() {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
+  const [location, setLocation] = useState<string>('');
+  const [propertyType, setPropertyType] = useState<string>('');
+  const [bedrooms, setBedrooms] = useState<string>('');
+  const [priceEstimate, setPriceEstimate] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
   const [selectedTab, setSelectedTab] = useState<'properties' | 'ongoing' | 'developer'>('properties');
   const [chartZoom, setChartZoom] = useState<{startIndex: number, endIndex: number} | null>(null);
   const [developerDetailsExpanded, setDeveloperDetailsExpanded] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [fetchingPrice, setFetchingPrice] = useState(false);
   
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -128,8 +182,8 @@ export default function PropertyLookupRefined() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!searchTerm.trim()) {
-      setError('Please enter a property name or ID');
+    if (!searchTerm.trim() && !location) {
+      setError('Please enter a property name or select location and filters');
       return;
     }
     
@@ -140,12 +194,53 @@ export default function PropertyLookupRefined() {
     setDeveloperDetailsExpanded(false);
     
     try {
+      // Check if API key is configured
+      const apiKey = apiKeyService.getStoredApiKey();
+      if (!apiKey) {
+        setError('OpenAI API key not configured. Please set up your API key in settings.');
+        setLoading(false);
+        return;
+      }
+
+      // First, try to get AI-powered information about this property if filters are set
+      if (location && propertyType && bedrooms) {
+        const criteria: PropertySearchCriteria = {
+          location,
+          propertyType, 
+          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+        };
+        
+        try {
+          const aiResponse = await getPropertyInfo(criteria);
+          
+          if (!aiResponse.success) {
+            console.error('Error getting AI property info:', aiResponse.error);
+          }
+        } catch (err) {
+          console.error('Error calling OpenAI API:', err);
+        }
+      }
+
       // In real implementation, this would call the backend API with OpenAI integration
-      // For now, we'll simulate a response delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // For now, we're using mock data but in a production scenario you'd use:
+      // const response = await fetch('/api/property-lookup', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ 
+      //     searchTerm, 
+      //     location, 
+      //     propertyType, 
+      //     bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10) 
+      //   })
+      // });
+      // const data = await response.json();
       
-      // Mock response - this would come from the backend
-      const mockData: PropertyData = await fetchMockPropertyData(searchTerm);
+      // For demo purposes, using the mock data
+      const mockData: PropertyData = await fetchMockPropertyData(searchTerm || location, {
+        location,
+        propertyType,
+        bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+      });
       
       setPropertyData(mockData);
     } catch (err) {
@@ -165,6 +260,17 @@ export default function PropertyLookupRefined() {
       // Update search term with the selected property's name
       setSearchTerm(selectedProperty.name);
       
+      // Reset filters to match this property
+      setLocation(selectedProperty.name.split(' ')[0]);
+      setPropertyType(
+        selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+        selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+        selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
+        selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
+        'Apartment' // Default to apartment if we can't determine
+      );
+      setBedrooms(selectedProperty.beds === 0 ? 'Studio' : selectedProperty.beds.toString());
+      
       // Trigger search for this property
       setLoading(true);
       setError(null);
@@ -173,12 +279,46 @@ export default function PropertyLookupRefined() {
       setDeveloperDetailsExpanded(false);
       
       try {
-        // In real implementation, this would call the backend API
-        // For now, we'll simulate a response delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Check if API key is configured
+        const apiKey = apiKeyService.getStoredApiKey();
+        if (!apiKey) {
+          setError('OpenAI API key not configured. Please set up your API key in settings.');
+          setLoading(false);
+          return;
+        }
+
+        // Get AI-powered information about this property
+        const criteria: PropertySearchCriteria = {
+          location: selectedProperty.name.split(' ')[0],
+          propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+                       selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+                       selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
+                       selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
+                       'Apartment',
+          bedrooms: selectedProperty.beds
+        };
         
-        // Mock response based on the selected property
-        const mockData: PropertyData = await fetchMockPropertyData(selectedProperty.name);
+        try {
+          const aiResponse = await getPropertyInfo(criteria);
+          
+          if (!aiResponse.success) {
+            console.error('Error getting AI property info:', aiResponse.error);
+          }
+        } catch (err) {
+          console.error('Error calling OpenAI API:', err);
+        }
+
+        // In a real implementation, this would call the backend API
+        // For demo purposes, use the mock data
+        const mockData: PropertyData = await fetchMockPropertyData(selectedProperty.name, {
+          location: selectedProperty.name.split(' ')[0],
+          propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+                     selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+                     selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
+                     selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
+                     'Apartment',
+          bedrooms: selectedProperty.beds
+        });
         
         setPropertyData(mockData);
       } catch (err) {
@@ -200,6 +340,51 @@ export default function PropertyLookupRefined() {
     setDeveloperDetailsExpanded(!developerDetailsExpanded);
   };
 
+  // Toggle filters visibility
+  const toggleFilters = () => {
+    setFiltersExpanded(!filtersExpanded);
+  };
+
+  // Update price estimate when filters change
+  useEffect(() => {
+    const updatePriceEstimate = async () => {
+      if (location && propertyType && bedrooms) {
+        setFetchingPrice(true);
+        try {
+          const criteria: PropertySearchCriteria = {
+            location,
+            propertyType,
+            bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+          };
+
+          const response = await getPropertyInfo(criteria);
+          
+          if (response.success && response.data) {
+            // Extract price range from the response - this is a simplification
+            // In a real implementation, you would need to parse the AI response more carefully
+            const priceMatch = response.data.match(/AED\s*([\d,]+)\s*-\s*AED\s*([\d,]+)/i);
+            if (priceMatch) {
+              setPriceEstimate(`${priceMatch[1]} - ${priceMatch[2]} AED`);
+            } else {
+              setPriceEstimate('Price estimate available upon search');
+            }
+          } else {
+            setPriceEstimate('Price estimate available upon search');
+          }
+        } catch (err) {
+          console.error('Error fetching price estimate:', err);
+          setPriceEstimate('Price estimate available upon search');
+        } finally {
+          setFetchingPrice(false);
+        }
+      } else {
+        setPriceEstimate('');
+      }
+    };
+
+    updatePriceEstimate();
+  }, [location, propertyType, bedrooms]);
+
   return (
     <div className="min-h-screen bg-anti-flash-white">
       <header className="bg-white shadow-sm border-b border-almond p-4">
@@ -214,38 +399,144 @@ export default function PropertyLookupRefined() {
       </header>
       
       <main className="container mx-auto px-4 py-6">
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              className="w-full p-3 pl-10 bg-white border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany"
-              placeholder="Enter property name or ID"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={loading}
-              list="property-suggestions"
-            />
-            <datalist id="property-suggestions">
-              <option value="Marina Towers" />
-              <option value="Burj Residences" />
-              <option value="Palm Jumeirah Villa" />
-              <option value="Downtown Lofts" />
-              <option value="Business Bay Apartment" />
-              <option value="Dubai Hills Estate" />
-              <option value="Dubai Marina Penthouse" />
-              <option value="Emirates Hills Villa" />
-            </datalist>
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tuscany" />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-tuscany text-white px-4 py-1 rounded-md hover:bg-tuscany/90 transition-colors"
-              disabled={loading}
-            >
-              {loading ? <FaSpinner className="animate-spin" /> : 'Search'}
-            </button>
-          </div>
-        </form>
+        {/* Search Bar and Filters */}
+        <div className="mb-6">
+          <form onSubmit={handleSearch}>
+            <div className="flex flex-col gap-4 bg-white p-4 rounded-lg shadow-sm">
+              {/* Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full p-3 pl-10 bg-white border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany"
+                  placeholder="Enter property name or ID"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={loading}
+                  list="property-suggestions"
+                />
+                <datalist id="property-suggestions">
+                  <option value="Marina Towers" />
+                  <option value="Burj Residences" />
+                  <option value="Palm Jumeirah Villa" />
+                  <option value="Downtown Lofts" />
+                  <option value="Business Bay Apartment" />
+                  <option value="Dubai Hills Estate" />
+                  <option value="Dubai Marina Penthouse" />
+                  <option value="Emirates Hills Villa" />
+                </datalist>
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tuscany" />
+              </div>
+
+              {/* Filter Toggle Button */}
+              <div className="flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={toggleFilters}
+                  className="flex items-center gap-2 text-dubai-blue-900 hover:text-tuscany transition-colors"
+                >
+                  <FaFilter className="h-4 w-4" />
+                  <span>{filtersExpanded ? "Hide Filters" : "Show Filters"}</span>
+                </button>
+
+                {priceEstimate && (
+                  <div className="text-dubai-blue-900 flex items-center gap-2">
+                    <FaTag className="h-4 w-4 text-tuscany" />
+                    <span className="font-medium">
+                      {fetchingPrice ? (
+                        <span className="flex items-center gap-2">
+                          <FaSpinner className="animate-spin h-4 w-4" /> 
+                          Calculating...
+                        </span>
+                      ) : (
+                        priceEstimate
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Expanded Filters */}
+              {filtersExpanded && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-almond/10 rounded-lg">
+                  {/* Location Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
+                      Location
+                    </label>
+                    <select
+                      className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">Select Location</option>
+                      {dubaiLocations.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Property Type Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
+                      Property Type
+                    </label>
+                    <select
+                      className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">Select Type</option>
+                      {propertyTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Bedrooms Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
+                      Bedrooms
+                    </label>
+                    <select
+                      className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
+                      value={bedrooms}
+                      onChange={(e) => setBedrooms(e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">Select Bedrooms</option>
+                      {bedroomOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Search Button */}
+              <button
+                type="submit"
+                className="bg-tuscany text-white p-3 rounded-lg hover:bg-tuscany/90 transition-colors"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <FaSpinner className="animate-spin mr-2" /> Searching...
+                  </span>
+                ) : (
+                  'Search Property'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
         
         {/* Error Message */}
         {error && (
@@ -730,105 +1021,247 @@ export default function PropertyLookupRefined() {
 
 // Mock data generation functions
 // In a real implementation, these would be API calls to your backend
-async function fetchMockPropertyData(propertyName: string): Promise<PropertyData> {
-  // This is just for demonstration purposes
-  // In a real app, this would be an API call to your backend
+async function fetchMockPropertyData(searchQuery: string, filterOptions?: {
+  location?: string;
+  propertyType?: string;
+  bedrooms?: string | number;
+}): Promise<PropertyData> {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
   
-  const currentYear = new Date().getFullYear();
+  // Clean the search query
+  const query = searchQuery.toLowerCase().trim();
   
-  // Generate some realistic-looking data based on the property name
-  const propertyId = propertyName.toLowerCase().replace(/\s+/g, '-');
-  const purchaseYear = 2010 + (propertyName.length % 10); // Random purchase year between 2010-2019
+  // Extract filter options
+  const location = filterOptions?.location || '';
+  const propertyType = filterOptions?.propertyType || '';
+  const bedrooms = typeof filterOptions?.bedrooms === 'string' ? 
+    filterOptions.bedrooms === 'Studio' ? 0 : parseInt(filterOptions.bedrooms, 10) || 1 :
+    filterOptions?.bedrooms || 1;
   
-  // Generate price history from purchase year to current year
-  const priceHistory: PricePoint[] = [];
-  let price = 5000000 + (propertyName.length * 500000); // Starting price based on name length
+  // Generate a deterministic ID based on the query
+  const id = `prop-${query.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now().toString().slice(-4)}`;
   
-  for (let year = purchaseYear; year <= currentYear; year++) {
-    priceHistory.push({
-      year,
-      price
-    });
-    
-    // Increase price by 5-15% each year
-    const growthRate = 1.05 + (Math.random() * 0.1);
-    price = Math.round(price * growthRate);
+  // Determine property name
+  let propertyName = query;
+  if (!propertyName && location) {
+    propertyName = `${location} ${propertyType || 'Property'}`;
+    if (bedrooms === 0) {
+      propertyName += ' Studio';
+    } else {
+      propertyName += ` ${bedrooms} BR`;
+    }
   }
   
-  // Generate metadata
-  const metadata: PropertyMetadata = {
-    id: propertyId,
-    name: propertyName,
-    beds: 2 + (propertyName.length % 4), // 2-5 beds
-    baths: 2 + (propertyName.length % 3), // 2-4 baths
-    sqft: 1500 + (propertyName.length * 200), // 1500-4500 sqft
-    developer: ['Elite Builders', 'Emaar Properties', 'Nakheel', 'Dubai Properties'][propertyName.length % 4],
-    purchaseYear,
-    location: ['Dubai Marina', 'Downtown Dubai', 'Palm Jumeirah', 'Business Bay'][propertyName.length % 4],
-    status: 'Completed',
-    coordinates: {
-      lat: 25.2048 + (Math.random() * 0.1),
-      lng: 55.2708 + (Math.random() * 0.1)
+  // Set a realistic location if none is provided in the search
+  let propertyLocation = location;
+  if (!propertyLocation) {
+    const locations = [
+      'Dubai Marina', 'Downtown Dubai', 'Palm Jumeirah', 'Business Bay',
+      'Jumeirah Lake Towers', 'Dubai Hills Estate', 'Arabian Ranches'
+    ];
+    propertyLocation = locations[Math.floor(Math.random() * locations.length)];
+  }
+  
+  // Set property type based on filter or guess from name
+  let type = propertyType;
+  if (!type) {
+    if (query.includes('villa') || query.includes('house')) {
+      type = 'Villa';
+    } else if (query.includes('penthouse')) {
+      type = 'Penthouse';
+    } else if (query.includes('apartment') || query.includes('flat')) {
+      type = 'Apartment';
+    } else if (query.includes('townhouse')) {
+      type = 'Townhouse';
+    } else if (query.includes('studio')) {
+      type = 'Studio';
+    } else {
+      type = ['Apartment', 'Villa', 'Penthouse', 'Townhouse'][Math.floor(Math.random() * 4)];
     }
+  }
+  
+  // Set bedrooms count
+  let bedroomCount = bedrooms;
+  if (bedroomCount === undefined) {
+    if (type === 'Studio') {
+      bedroomCount = 0;
+    } else {
+      // Extract bedroom count from query, e.g. "2 bedroom apartment"
+      const bedroomMatch = query.match(/(\d+)\s*(?:bed|bedroom|br|b\/r)/i);
+      bedroomCount = bedroomMatch ? parseInt(bedroomMatch[1], 10) : Math.floor(Math.random() * 4) + 1;
+    }
+  }
+  
+  // Generate purchase year between 2005 and 2023
+  const purchaseYear = Math.floor(Math.random() * 18) + 2005;
+  
+  // Generate a realistic price based on location, property type, bedrooms
+  let basePrice = 0;
+  
+  // Set base price by location (in AED)
+  switch (propertyLocation) {
+    case 'Palm Jumeirah':
+      basePrice = 5000000;
+      break;
+    case 'Downtown Dubai':
+      basePrice = 4000000;
+      break;
+    case 'Dubai Marina':
+      basePrice = 3000000;
+      break;
+    case 'Business Bay':
+      basePrice = 2800000;
+      break;
+    case 'Jumeirah Lake Towers':
+      basePrice = 2000000;
+      break;
+    case 'Dubai Hills Estate':
+      basePrice = 3500000;
+      break;
+    case 'Arabian Ranches':
+      basePrice = 4200000;
+      break;
+    default:
+      basePrice = 2500000;
+  }
+  
+  // Adjust price by property type
+  const typeMultiplier = {
+    'Villa': 2.5,
+    'Penthouse': 2.2,
+    'Townhouse': 1.8,
+    'Apartment': 1.0,
+    'Studio': 0.7,
+    'Duplex': 1.5
+  }[type] || 1.0;
+  
+  // Adjust price by bedrooms (studios handled separately)
+  const bedroomMultiplier = bedroomCount === 0 ? 1.0 : (0.8 + (bedroomCount * 0.2));
+  
+  // Calculate final price
+  const initialPrice = Math.round(basePrice * typeMultiplier * bedroomMultiplier / 100000) * 100000;
+  
+  // Generate price history trend
+  const priceHistory: PricePoint[] = [];
+  let currentPrice = initialPrice;
+  
+  for (let year = purchaseYear; year <= 2025; year++) {
+    // Add some realistic market fluctuations
+    let growthRate = 0.05; // 5% average annual growth
+    
+    // Global financial crisis (2008-2009)
+    if (year === 2008) growthRate = -0.15;
+    if (year === 2009) growthRate = -0.10;
+    
+    // Recovery and boom (2011-2014)
+    if (year >= 2011 && year <= 2014) growthRate = 0.12;
+    
+    // Slight cooling (2015-2016)
+    if (year >= 2015 && year <= 2016) growthRate = -0.03;
+    
+    // Stable period (2017-2019)
+    if (year >= 2017 && year <= 2019) growthRate = 0.04;
+    
+    // COVID impact (2020)
+    if (year === 2020) growthRate = -0.07;
+    
+    // Strong recovery (2021-2023)
+    if (year >= 2021 && year <= 2023) growthRate = 0.10;
+    
+    // Current and future projections (2024-2025)
+    if (year >= 2024) growthRate = 0.06;
+    
+    // Apply growth rate with some randomness
+    currentPrice = Math.round((currentPrice * (1 + growthRate + (Math.random() * 0.04 - 0.02))) / 10000) * 10000;
+    
+    // Add to price history
+    priceHistory.push({
+      year,
+      price: currentPrice
+    });
+  }
+  
+  // Generate developer name
+  const developers = [
+    'Emaar Properties', 'DAMAC Properties', 'Nakheel', 'Dubai Properties',
+    'Meraas', 'Sobha Realty', 'Azizi Developments', 'Deyaar Development',
+    'Omniyat', 'Select Group'
+  ];
+  const developer = developers[Math.floor(Math.random() * developers.length)];
+  
+  // Generate developer details
+  const developerInfo = {
+    id: `dev-${developer.toLowerCase().replace(/\s+/g, '-')}`,
+    name: developer,
+    headquarters: 'Dubai, UAE',
+    totalProjects: Math.floor(Math.random() * 30) + 20,
+    averageROI: Math.round((Math.random() * 6) + 4 + Math.random()),
+    revenueByYear: Array.from({ length: 6 }, (_, i) => ({
+      year: 2020 + i,
+      residential: Math.round(Math.random() * 5000) + 2000,
+      commercial: Math.round(Math.random() * 3000) + 1000,
+      mixedUse: Math.round(Math.random() * 2000) + 500
+    }))
   };
   
   // Generate nearby properties
-  const nearby: NearbyProperty[] = Array.from({ length: 8 }, (_, i) => {
-    const distance = 0.5 + (Math.random() * 4.5); // 0.5-5km
-    const originalYear = purchaseYear - 2 + (i % 5);
-    const originalPrice = 4000000 + (Math.random() * 10000000);
-    const currentPrice = originalPrice * (1 + (Math.random() * 0.8)); // 0-80% growth
+  const nearby: NearbyProperty[] = Array.from({ length: 5 }, (_, i) => {
+    const nearbyBedroomVariation = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+    const nearbyBedrooms = Math.max(1, bedroomCount + nearbyBedroomVariation);
+    const nearbyPurchaseYear = Math.max(2005, purchaseYear - Math.floor(Math.random() * 5) + Math.floor(Math.random() * 5));
+    const nearbyOriginalPrice = Math.round(initialPrice * (0.7 + Math.random() * 0.6) / 100000) * 100000;
+    const nearbyCurrentPrice = Math.round(nearbyOriginalPrice * (1.2 + Math.random() * 0.8) / 100000) * 100000;
     
     return {
-      id: `nearby-${i}`,
-      name: `${['Palm', 'Marina', 'Downtown', 'Heights', 'Towers', 'Residence'][i % 6]} ${['Plaza', 'View', 'Gardens', 'Estate', 'Terrace'][Math.floor(Math.random() * 5)]}`,
-      distance,
-      originalPrice,
-      originalYear,
-      currentPrice,
-      currentYear,
-      beds: 1 + (i % 5),
-      baths: 1 + (i % 4),
-      sqft: 1000 + (i * 300),
-      developer: ['Elite Builders', 'Emaar Properties', 'Nakheel', 'Dubai Properties'][i % 4]
+      id: `nearby-${i}-${Date.now().toString().slice(-4)}`,
+      name: `${propertyLocation} ${['Residence', 'Tower', 'Heights', 'Park', 'View'][i % 5]} ${Math.floor(Math.random() * 20) + 1}`,
+      distance: Math.round((Math.random() * 1.5 + 0.2) * 10) / 10,
+      originalPrice: nearbyOriginalPrice,
+      originalYear: nearbyPurchaseYear,
+      currentPrice: nearbyCurrentPrice,
+      currentYear: 2025,
+      beds: nearbyBedrooms,
+      baths: nearbyBedrooms + (Math.random() > 0.5 ? 1 : 0),
+      sqft: Math.round((800 + (nearbyBedrooms * 400) + Math.random() * 300) / 10) * 10,
+      developer: developers[Math.floor(Math.random() * developers.length)]
     };
   });
   
   // Generate ongoing projects
-  const ongoingProjects: OngoingProject[] = Array.from({ length: 5 }, (_, i) => {
+  const ongoingProjects: OngoingProject[] = Array.from({ length: 3 }, (_, i) => {
+    const projectStatuses = ['In Ideation', 'Pre-Funding', 'Under Construction', 'Nearly Complete'];
+    const status = projectStatuses[Math.floor(Math.random() * projectStatuses.length)] as any;
+    const completionYear = new Date().getFullYear() + Math.floor(Math.random() * 4) + 1;
+    
     return {
-      id: `project-${i}`,
-      name: `${['Oasis', 'Green', 'Blue', 'Elite', 'Dubai', 'Emirates'][i % 6]} ${['Tower', 'Heights', 'Plaza', 'Residence', 'Park'][Math.floor(Math.random() * 5)]}`,
-      status: ['In Ideation', 'Pre-Funding', 'Under Construction', 'Nearly Complete'][i % 4] as any,
-      expectedCompletion: `${currentYear + 1 + (i % 3)}`,
-      developer: ['Elite Builders', 'Emaar Properties', 'Nakheel', 'Dubai Properties'][i % 4]
+      id: `project-${i}-${Date.now().toString().slice(-4)}`,
+      name: `${['The', 'New', 'Royal', 'Grand', 'Elite'][i % 5]} ${propertyLocation} ${['Residences', 'Towers', 'Heights', 'Estate', 'Gardens'][i % 5]}`,
+      status,
+      expectedCompletion: completionYear.toString(),
+      developer: developers[Math.floor(Math.random() * developers.length)]
     };
   });
   
-  // Generate developer info based on the property's developer
-  const developerName = metadata.developer;
-  const developer: DeveloperInfo = {
-    id: developerName.toLowerCase().replace(/\s+/g, '-'),
-    name: developerName,
-    headquarters: 'Dubai, UAE',
-    totalProjects: 20 + (developerName.length * 3),
-    averageROI: 7 + (Math.random() * 5), // 7-12% ROI
-    revenueByYear: Array.from({ length: 5 }, (_, i) => {
-      const year = currentYear - 4 + i;
-      return {
-        year,
-        residential: 2 + Math.random() * 6,
-        commercial: 1 + Math.random() * 4,
-        mixedUse: 0.5 + Math.random() * 3
-      };
-    })
-  };
-  
   return {
-    metadata,
+    metadata: {
+      id,
+      name: propertyName,
+      beds: bedroomCount,
+      baths: bedroomCount + (Math.random() > 0.7 ? 1 : 0),
+      sqft: Math.round((800 + (bedroomCount * 400) + Math.random() * 300) / 10) * 10,
+      developer,
+      purchaseYear,
+      location: propertyLocation,
+      status: 'Completed',
+      coordinates: {
+        lat: 25.0657 + (Math.random() * 0.2 - 0.1),
+        lng: 55.17128 + (Math.random() * 0.2 - 0.1)
+      }
+    },
     priceHistory,
     nearby,
     ongoingProjects,
-    developer
+    developer: developerInfo
   };
 } 

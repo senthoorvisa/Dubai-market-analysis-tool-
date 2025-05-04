@@ -1,4 +1,4 @@
-import { updateApiKey } from './initOpenAi';
+import { updateApiKey } from '../services/initOpenAi';
 
 // API Key service for secure management of OpenAI API keys
 // Follows security best practices as per UAE PDPL regulations
@@ -8,6 +8,9 @@ interface ApiKeyMetadata {
   expiresAt: string;
   keyHash: string; // Store only hash, not the actual key
 }
+
+const API_KEY_STORAGE_KEY = 'openai_api_key';
+const ORG_ID_STORAGE_KEY = 'openai_org_id';
 
 /**
  * Encrypts API key for secure storage
@@ -73,7 +76,15 @@ const checkKeyRotation = (): boolean => {
  */
 export const getStoredApiKey = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('openai_api_key');
+  return localStorage.getItem(API_KEY_STORAGE_KEY);
+};
+
+/**
+ * Get stored Organization ID from localStorage
+ */
+export const getStoredOrgId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ORG_ID_STORAGE_KEY);
 };
 
 /**
@@ -103,7 +114,15 @@ export const secureSetApiKey = (apiKey: string, orgId?: string): boolean => {
 
     // Store the API key directly in localStorage for persistence
     if (typeof window !== 'undefined') {
-      localStorage.setItem('openai_api_key', apiKey);
+      localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+      
+      // Save org ID if provided
+      if (orgId && orgId.trim()) {
+        localStorage.setItem(ORG_ID_STORAGE_KEY, orgId);
+      } else if (localStorage.getItem(ORG_ID_STORAGE_KEY)) {
+        // Remove org ID if not provided but exists in storage
+        localStorage.removeItem(ORG_ID_STORAGE_KEY);
+      }
     }
     
     return true;
@@ -124,23 +143,24 @@ export const needsKeyRotation = (): boolean => {
  * Check if API key is configured
  */
 export const isApiKeyConfigured = (): boolean => {
-  return getStoredApiKey() !== null;
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  
+  const key = localStorage.getItem(API_KEY_STORAGE_KEY);
+  return !!key && key.length > 10;
 };
 
 /**
- * Clear stored API key
+ * Clear stored API key and org ID
  */
-export const clearApiKey = (): boolean => {
-  try {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('openai_api_key');
-      localStorage.removeItem('openai_key_metadata');
-    }
-    return true;
-  } catch (error) {
-    console.error('Error clearing API key:', error);
-    return false;
+export const clearApiKey = (): void => {
+  if (typeof window === 'undefined') {
+    return;
   }
+  
+  localStorage.removeItem(API_KEY_STORAGE_KEY);
+  localStorage.removeItem(ORG_ID_STORAGE_KEY);
 };
 
 /**
@@ -166,11 +186,29 @@ export const anonymizeData = (content: string): string => {
   return content;
 };
 
-export default {
-  secureSetApiKey,
-  needsKeyRotation,
-  anonymizeData,
+/**
+ * Initialize with default API key if one isn't set
+ * This should be called when the application starts
+ */
+export const initializeWithDefaultKey = (): boolean => {
+  // Only set the default key if there isn't one already stored
+  if (!getStoredApiKey()) {
+    // Use the default key provided
+    const defaultApiKey = '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';
+    return secureSetApiKey(defaultApiKey);
+  }
+  return true;
+};
+
+const apiKeyService = {
+  saveApiKey: secureSetApiKey,
   getStoredApiKey,
+  getStoredOrgId,
   isApiKeyConfigured,
   clearApiKey,
-}; 
+  initializeWithDefaultKey,
+  anonymizeData,
+  needsKeyRotation,
+};
+
+export default apiKeyService; 

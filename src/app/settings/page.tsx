@@ -83,7 +83,7 @@ export default function SettingsPage() {
       
       // Set the new project-scoped API key automatically
       const newApiKey = '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';
-      apiKeyService.secureSetApiKey(newApiKey);
+      apiKeyService.saveApiKey(newApiKey);
       setSavedKeys({
         openAI: '●●●●●●●●●●●●●●●●●●●●' // Never display the actual key
       });
@@ -95,7 +95,7 @@ export default function SettingsPage() {
   const saveApiKey = (keyName: string, value: string) => {
     if (keyName === 'openAI') {
       // Initialize the API with the new key using the secure service
-      if (apiKeyService.secureSetApiKey(value)) {
+      if (apiKeyService.saveApiKey(value)) {
         setSavedKeys({
           ...savedKeys,
           [keyName]: '●●●●●●●●●●●●●●●●●●●●' // Never display the actual key

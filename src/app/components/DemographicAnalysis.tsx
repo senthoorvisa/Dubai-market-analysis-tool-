@@ -6,6 +6,7 @@ import { DemographicData, InfrastructureProject } from '../interfaces/demographi
 import { getDemographicInfo } from '../services/openAiService';
 import ApiKeyInput from './ApiKeyInput';
 import apiKeyService from '../services/apiKeyService';
+import EnhancedDemographicDisplay from './EnhancedDemographicDisplay';
 
 const DemographicAnalysis: React.FC = () => {
   const {
@@ -114,16 +115,6 @@ const DemographicAnalysis: React.FC = () => {
     }
   };
 
-  // Format the AI analysis with line breaks
-  const formatAnalysis = (text: string) => {
-    if (!text) return [];
-    return text.split('\n').map((line, index) => (
-      <p key={index} className={`mb-2 ${line.trim().startsWith('#') ? 'font-bold text-lg mt-4' : ''}`}>
-        {line}
-      </p>
-    ));
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Demographic & Infrastructure Analysis</h2>
@@ -152,10 +143,13 @@ const DemographicAnalysis: React.FC = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
-            You need to configure your OpenAI API key for enhanced demographic analysis. 
+            <span>
+              <strong>API Key Required:</strong> You must configure your OpenAI API key to access real-time demographic analysis. 
+              This app uses OpenAI's GPT-4 to provide accurate, up-to-date information about Dubai locations.
+            </span>
             <button 
               onClick={() => setShowApiKeyInput(true)}
-              className="ml-2 underline text-blue-600 hover:text-blue-800"
+              className="ml-2 underline text-blue-600 hover:text-blue-800 font-bold"
             >
               Configure API Key
             </button>
@@ -201,10 +195,7 @@ const DemographicAnalysis: React.FC = () => {
       {/* AI Analysis */}
       {aiAnalysis && (
         <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4 text-gray-800">AI-Powered Analysis: {location}</h3>
-          <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm prose prose-lg max-w-none">
-            {formatAnalysis(aiAnalysis)}
-          </div>
+          <EnhancedDemographicDisplay location={location} analysis={aiAnalysis} />
         </div>
       )}
 
@@ -214,7 +205,7 @@ const DemographicAnalysis: React.FC = () => {
           {/* Demographic Overview */}
           <div className="mb-8">
             <h3 className="text-xl font-semibold mb-3 text-gray-800">Demographic Overview: {demographicData.location}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                 <h4 className="font-medium mb-2 text-gray-800">Population Statistics</h4>
                 <div className="space-y-2 text-gray-700">
@@ -233,31 +224,6 @@ const DemographicAnalysis: React.FC = () => {
                     <span className="font-medium">Population Density:</span>{' '}
                     {demographicData.populationStats.density.toLocaleString()}/km²
                   </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <h4 className="font-medium mb-2 text-gray-800">Nationality Breakdown</h4>
-                <div className="space-y-1">
-                  {demographicData.nationalities && Object.entries(demographicData.nationalities).map(([nationality, percentage]) => (
-                    <div key={nationality} className="flex justify-between items-center text-sm">
-                      <span>{nationality}</span>
-                      <div className="flex-grow mx-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-indigo-500 h-2 rounded-full"
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <span className="text-gray-700">{percentage}%</span>
-                    </div>
-                  ))}
-                  {!demographicData.nationalities && (
-                    <div className="text-gray-500 text-sm">
-                      Nationality data not available for this location.
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -295,10 +261,10 @@ const DemographicAnalysis: React.FC = () => {
                     <span className="font-medium">51+:</span>
                     <div className="flex-grow mx-2">
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${demographicData.ageDistribution.above50}%` }}></div>
+                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(demographicData.ageDistribution.age51to65 + demographicData.ageDistribution.above65)}%` }}></div>
                       </div>
                     </div>
-                    <span>{demographicData.ageDistribution.above50}%</span>
+                    <span>{(demographicData.ageDistribution.age51to65 + demographicData.ageDistribution.above65)}%</span>
                   </div>
                 </div>
               </div>
@@ -316,7 +282,7 @@ const DemographicAnalysis: React.FC = () => {
                   <h4 className="font-medium mb-3 text-gray-800">Major Infrastructure Projects</h4>
                   
                   <div className="space-y-3">
-                    {infrastructureAnalysis.projects.map((project, index) => (
+                    {infrastructureAnalysis.projects && infrastructureAnalysis.projects.map((project, index) => (
                       <div key={index} className="border border-gray-200 rounded-lg p-3">
                         <div className="flex justify-between items-start mb-1">
                           <span className="font-medium text-gray-800">{project.name}</span>
@@ -335,54 +301,63 @@ const DemographicAnalysis: React.FC = () => {
                         </div>
                       </div>
                     ))}
+                    {!infrastructureAnalysis.projects && (
+                      <p className="text-gray-500 text-sm">Project data not available for this location.</p>
+                    )}
                   </div>
                 </div>
                 
-                {/* Transportation */}
+                {/* Transportation - only show if there's transportation data */}
+                {infrastructureAnalysis.transportation && infrastructureAnalysis.transportation.length > 0 ? (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                    <h4 className="font-medium mb-3 text-gray-800">Transportation & Connectivity</h4>
+                    
+                    <div className="space-y-3">
+                      {infrastructureAnalysis.transportation.map((item, index) => (
+                        <div key={index} className="flex items-start space-x-2">
+                          <div className={`p-1 rounded-full ${
+                            item.type === 'Metro' ? 'bg-red-100 text-red-800' :
+                            item.type === 'Bus' ? 'bg-blue-100 text-blue-800' :
+                            item.type === 'Road' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7l4-4m0 0l4 4m-4-4v18" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                            <p className="text-xs text-gray-600">{item.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              
+              {/* Urban Facilities */}
+              {infrastructureAnalysis.urbanFacilities && infrastructureAnalysis.urbanFacilities.length > 0 ? (
                 <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                  <h4 className="font-medium mb-3 text-gray-800">Transportation & Connectivity</h4>
+                  <h4 className="font-medium mb-3 text-gray-800">Urban Facilities</h4>
                   
-                  <div className="space-y-3">
-                    {infrastructureAnalysis.transportation.map((item, index) => (
-                      <div key={index} className="flex items-start space-x-2">
-                        <div className={`p-1 rounded-full ${
-                          item.type === 'Metro' ? 'bg-red-100 text-red-800' :
-                          item.type === 'Bus' ? 'bg-blue-100 text-blue-800' :
-                          item.type === 'Road' ? 'bg-green-100 text-green-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7l4-4m0 0l4 4m-4-4v18" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {infrastructureAnalysis.urbanFacilities.map((facility, index) => (
+                      <div key={index} className="text-center">
+                        <div className="flex items-center justify-center bg-gray-100 rounded-full w-12 h-12 mx-auto mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                           </svg>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                          <p className="text-xs text-gray-600">{item.description}</p>
-                        </div>
+                        <p className="font-medium text-sm text-gray-800">{facility.type}</p>
+                        <p className="text-xs text-gray-600">{facility.count} within 3km</p>
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-              
-              {/* Urban Facilities */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <h4 className="font-medium mb-3 text-gray-800">Urban Facilities</h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  {infrastructureAnalysis.urbanFacilities.map((facility, index) => (
-                    <div key={index} className="text-center">
-                      <div className="flex items-center justify-center bg-gray-100 rounded-full w-12 h-12 mx-auto mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                      </div>
-                      <p className="font-medium text-sm text-gray-800">{facility.type}</p>
-                      <p className="text-xs text-gray-600">{facility.count} within 3km</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ) : (
+                <p className="text-gray-500 text-sm">Urban facilities data will be loaded when you search with an API key.</p>
+              )}
             </div>
           )}
 

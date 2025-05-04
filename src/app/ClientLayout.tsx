@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import openai from './services/initOpenAi';
+import apiKeyService from './services/apiKeyService';
 
 export default function ClientLayout({
   children,
@@ -23,6 +24,9 @@ export default function ClientLayout({
     };
 
     window.addEventListener('popstate', handleRouteChange);
+    
+    // Initialize the OpenAI API key
+    apiKeyService.initializeWithDefaultKey();
     
     return () => {
       window.removeEventListener('popstate', handleRouteChange);

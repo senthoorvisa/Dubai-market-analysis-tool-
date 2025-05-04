@@ -498,7 +498,7 @@ const getDeveloperData = (developerName: string): any => {
         email: 'info@nakheel.com'
       },
       headquarters: 'Dubai, UAE',
-      description: 'Nakheel is a world-leading master developer whose innovative, landmark projects form an iconic portfolio of master communities and residential, retail, hospitality and leisure developments that are pivotal to realizing Dubai's vision.',
+      description: 'Nakheel is a world-leading master developer whose innovative, landmark projects form an iconic portfolio of master communities and residential, retail, hospitality and leisure developments that are pivotal to realizing Dubai\'s vision.',
       revenueBreakdown: [
         { year: 2000, residential: 2, commercial: 1, mixedUse: 0 },
         { year: 2005, residential: 10, commercial: 5, mixedUse: 2 },
@@ -531,6 +531,247 @@ const getDeveloperData = (developerName: string): any => {
         { name: "Al Furjan", type: "Residential", location: "Furjan", value: 3500000000, completionYear: 2010, units: 4000 },
         { name: "Dragon City", type: "Commercial", location: "International City", value: 5000000000, completionYear: 2007, units: 5000 },
         { name: "Palm Tower", type: "Mixed-Use", location: "Palm Jumeirah", value: 2000000000, completionYear: 2021, units: 432 }
+      ]
+    },
+    "Deyaar Development": {
+      id: 'deyaar001',
+      name: 'Deyaar Development',
+      foundedYear: 2002,
+      website: 'https://www.deyaar.com',
+      contact: {
+        phone: '+971 4 819 8888',
+        email: 'info@deyaar.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Deyaar Development PJSC is a leading real estate developer and real estate services company, headquartered in Dubai. Since its establishment in 2002, Deyaar has emerged as one of the leading developers in the region with an extensive portfolio of quality projects.',
+      revenueBreakdown: [
+        { year: 2002, residential: 1, commercial: 2, mixedUse: 0 },
+        { year: 2005, residential: 4, commercial: 6, mixedUse: 1 },
+        { year: 2010, residential: 8, commercial: 11, mixedUse: 3 },
+        { year: 2015, residential: 12, commercial: 14, mixedUse: 5 },
+        { year: 2020, residential: 16, commercial: 18, mixedUse: 8 },
+        { year: 2021, residential: 18, commercial: 19, mixedUse: 9 },
+        { year: 2022, residential: 21, commercial: 20, mixedUse: 11 },
+        { year: 2023, residential: 24, commercial: 23, mixedUse: 13 }
+      ],
+      topClients: [
+        { name: "Ahmed Bin Saeed Al Maktoum", occupation: "Emirates Group", revenue: 620000000 },
+        { name: "Mohammed Ibrahim Al Shaibani", occupation: "Investment Corp of Dubai", revenue: 580000000 },
+        { name: "Abdulla Al Futtaim", occupation: "Al-Futtaim Group", revenue: 490000000 },
+        { name: "P.N.C. Menon", occupation: "Sobha Group", revenue: 420000000 },
+        { name: "Rizwan Sajan", occupation: "Danube Group", revenue: 350000000 }
+      ],
+      totalProjects: 42,
+      totalValue: 85000000000,
+      avgROI: 7.8,
+      clientSatisfaction: 4.2,
+      topProperties: [
+        { name: "Midtown", type: "Mixed-Use", location: "International City", value: 3500000000, completionYear: 2021, units: 2000 },
+        { name: "Atria", type: "Residential", location: "Business Bay", value: 1800000000, completionYear: 2018, units: 350 },
+        { name: "Montrose", type: "Residential", location: "Dubai Science Park", value: 2200000000, completionYear: 2019, units: 450 },
+        { name: "Millennium Executive Apartments", type: "Hospitality", location: "Al Barsha", value: 1500000000, completionYear: 2017, units: 300 },
+        { name: "Deyaar Park", type: "Residential", location: "Dubai Silicon Oasis", value: 2000000000, completionYear: 2010, units: 1200 },
+        { name: "The Citadel", type: "Commercial", location: "Business Bay", value: 1700000000, completionYear: 2013, units: 180 },
+        { name: "Mayfair Tower", type: "Residential", location: "Business Bay", value: 1200000000, completionYear: 2012, units: 260 },
+        { name: "Burlington Tower", type: "Commercial", location: "Business Bay", value: 1300000000, completionYear: 2011, units: 150 },
+        { name: "Oakwood Residency", type: "Residential", location: "International City", value: 900000000, completionYear: 2009, units: 800 },
+        { name: "Ruby Residence", type: "Residential", location: "Dubai Silicon Oasis", value: 1100000000, completionYear: 2011, units: 500 }
+      ]
+    },
+    "Dubai Properties": {
+      id: 'dubaiproperties001',
+      name: 'Dubai Properties',
+      foundedYear: 2004,
+      website: 'https://www.dubaiproperties.ae',
+      contact: {
+        phone: '+971 4 873 3333',
+        email: 'customercare@dp.ae'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Dubai Properties is a leading master developer known for its iconic destinations and communities across Dubai. The company creates inspiring lifestyle experiences through the development of destinations that feature well-designed residential communities.',
+      revenueBreakdown: [
+        { year: 2004, residential: 2, commercial: 1, mixedUse: 0 },
+        { year: 2005, residential: 3, commercial: 2, mixedUse: 1 },
+        { year: 2010, residential: 9, commercial: 6, mixedUse: 3 },
+        { year: 2015, residential: 15, commercial: 10, mixedUse: 6 },
+        { year: 2020, residential: 20, commercial: 14, mixedUse: 9 },
+        { year: 2021, residential: 22, commercial: 15, mixedUse: 10 },
+        { year: 2022, residential: 26, commercial: 17, mixedUse: 12 },
+        { year: 2023, residential: 30, commercial: 20, mixedUse: 15 }
+      ],
+      totalProjects: 46,
+      totalValue: 105000000000,
+      avgROI: 8.3,
+      clientSatisfaction: 4.4,
+      topProperties: [
+        { name: "Jumeirah Beach Residence", type: "Mixed-Use", location: "Dubai Marina", value: 8000000000, completionYear: 2008, units: 6000 },
+        { name: "Business Bay", type: "Mixed-Use", location: "Business Bay", value: 6500000000, completionYear: 2010, units: 4000 },
+        { name: "Culture Village", type: "Mixed-Use", location: "Al Jaddaf", value: 5000000000, completionYear: 2017, units: 3000 },
+        { name: "Dubailand", type: "Mixed-Use", location: "Dubailand", value: 7000000000, completionYear: 2015, units: 5000 },
+        { name: "The Villa", type: "Residential", location: "Dubailand", value: 3500000000, completionYear: 2013, units: 1200 }
+      ]
+    },
+    "Meraas": {
+      id: 'meraas001',
+      name: 'Meraas',
+      foundedYear: 2007,
+      website: 'https://www.meraas.com',
+      contact: {
+        phone: '+971 4 317 3999',
+        email: 'info@meraas.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Meraas is dedicated to making Dubai and the UAE better for people to live, work and play in. We design for a diverse mix of people to create a fusion of residential, commercial, retail, hospitality and entertainment destinations.',
+      revenueBreakdown: [
+        { year: 2007, residential: 1, commercial: 1, mixedUse: 0 },
+        { year: 2010, residential: 3, commercial: 4, mixedUse: 1 },
+        { year: 2015, residential: 8, commercial: 10, mixedUse: 5 },
+        { year: 2020, residential: 15, commercial: 17, mixedUse: 9 },
+        { year: 2021, residential: 17, commercial: 18, mixedUse: 10 },
+        { year: 2022, residential: 19, commercial: 20, mixedUse: 12 },
+        { year: 2023, residential: 22, commercial: 23, mixedUse: 15 }
+      ],
+      totalProjects: 38,
+      totalValue: 95000000000,
+      avgROI: 8.0,
+      clientSatisfaction: 4.6,
+      topProperties: [
+        { name: "Bluewaters Island", type: "Mixed-Use", location: "Jumeirah Beach", value: 6000000000, completionYear: 2018, units: 700 },
+        { name: "City Walk", type: "Mixed-Use", location: "Al Safa", value: 4500000000, completionYear: 2016, units: 600 },
+        { name: "La Mer", type: "Mixed-Use", location: "Jumeirah", value: 5000000000, completionYear: 2017, units: 300 },
+        { name: "The Beach", type: "Mixed-Use", location: "JBR", value: 3000000000, completionYear: 2014, units: 200 },
+        { name: "Port de La Mer", type: "Residential", location: "Jumeirah", value: 4000000000, completionYear: 2020, units: 1200 }
+      ]
+    },
+    "Sobha Realty": {
+      id: 'sobha001',
+      name: 'Sobha Realty',
+      foundedYear: 1976,
+      website: 'https://www.sobharealty.com',
+      contact: {
+        phone: '+971 4 403 7777',
+        email: 'info@sobha.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Sobha Realty is an international luxury developer committed to redefining the art of living through sustainable communities. We have expanded our footprint to the Middle East with developments in Dubai.',
+      revenueBreakdown: [
+        { year: 2005, residential: 2, commercial: 1, mixedUse: 0 },
+        { year: 2010, residential: 5, commercial: 3, mixedUse: 1 },
+        { year: 2015, residential: 9, commercial: 5, mixedUse: 3 },
+        { year: 2020, residential: 14, commercial: 8, mixedUse: 5 },
+        { year: 2021, residential: 16, commercial: 9, mixedUse: 6 },
+        { year: 2022, residential: 19, commercial: 10, mixedUse: 7 },
+        { year: 2023, residential: 22, commercial: 12, mixedUse: 9 }
+      ],
+      totalProjects: 30,
+      totalValue: 75000000000,
+      avgROI: 9.2,
+      clientSatisfaction: 4.7,
+      topProperties: [
+        { name: "Sobha Hartland", type: "Mixed-Use", location: "Mohammed Bin Rashid City", value: 4000000000, completionYear: 2019, units: 5000 },
+        { name: "Sobha Creek Vistas", type: "Residential", location: "Sobha Hartland", value: 2500000000, completionYear: 2021, units: 900 },
+        { name: "District One", type: "Residential", location: "Mohammed Bin Rashid City", value: 3500000000, completionYear: 2018, units: 1500 },
+        { name: "Sobha Sapphire", type: "Residential", location: "Business Bay", value: 1500000000, completionYear: 2015, units: 300 },
+        { name: "Sobha Sea Haven", type: "Residential", location: "Palm Jumeirah", value: 2800000000, completionYear: 2022, units: 200 }
+      ]
+    },
+    "Azizi Developments": {
+      id: 'azizi001',
+      name: 'Azizi Developments',
+      foundedYear: 2007,
+      website: 'https://www.azizidevelopments.com',
+      contact: {
+        phone: '+971 4 596 3444',
+        email: 'customerservice@azizidevelopments.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Azizi Developments is a leading private developer in Dubai that has established itself as a key player in the city\'s real estate market through the construction of landmark residential and commercial projects.',
+      revenueBreakdown: [
+        { year: 2007, residential: 1, commercial: 0, mixedUse: 0 },
+        { year: 2010, residential: 4, commercial: 1, mixedUse: 1 },
+        { year: 2015, residential: 10, commercial: 4, mixedUse: 3 },
+        { year: 2020, residential: 18, commercial: 7, mixedUse: 5 },
+        { year: 2021, residential: 21, commercial: 8, mixedUse: 6 },
+        { year: 2022, residential: 25, commercial: 10, mixedUse: 8 },
+        { year: 2023, residential: 30, commercial: 12, mixedUse: 10 }
+      ],
+      totalProjects: 35,
+      totalValue: 70000000000,
+      avgROI: 8.6,
+      clientSatisfaction: 4.3,
+      topProperties: [
+        { name: "Azizi Riviera", type: "Residential", location: "Meydan", value: 5000000000, completionYear: 2021, units: 16000 },
+        { name: "Azizi Victoria", type: "Mixed-Use", location: "Mohammed Bin Rashid City", value: 3500000000, completionYear: 2022, units: 8000 },
+        { name: "Azizi Mina", type: "Residential", location: "Palm Jumeirah", value: 1200000000, completionYear: 2018, units: 178 },
+        { name: "Azizi Royal Bay", type: "Residential", location: "Palm Jumeirah", value: 1500000000, completionYear: 2017, units: 90 },
+        { name: "Azizi Star", type: "Residential", location: "Al Furjan", value: 900000000, completionYear: 2019, units: 458 }
+      ]
+    },
+    "Omniyat": {
+      id: 'omniyat001',
+      name: 'Omniyat',
+      foundedYear: 2005,
+      website: 'https://www.omniyat.com',
+      contact: {
+        phone: '+971 4 511 5000',
+        email: 'info@omniyat.com'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Omniyat creates living canvases of luxury, exclusivity and high-design for the discerning few. Each Omniyat development is unique and designed to create bespoke experiences that nurture the soul and elevate the spirit.',
+      revenueBreakdown: [
+        { year: 2005, residential: 1, commercial: 1, mixedUse: 0 },
+        { year: 2010, residential: 3, commercial: 2, mixedUse: 1 },
+        { year: 2015, residential: 5, commercial: 4, mixedUse: 2 },
+        { year: 2020, residential: 8, commercial: 6, mixedUse: 3 },
+        { year: 2021, residential: 9, commercial: 7, mixedUse: 3 },
+        { year: 2022, residential: 10, commercial: 8, mixedUse: 4 },
+        { year: 2023, residential: 12, commercial: 9, mixedUse: 5 }
+      ],
+      totalProjects: 18,
+      totalValue: 45000000000,
+      avgROI: 9.5,
+      clientSatisfaction: 4.9,
+      topProperties: [
+        { name: "One Palm", type: "Residential", location: "Palm Jumeirah", value: 3000000000, completionYear: 2019, units: 90 },
+        { name: "The Opus", type: "Mixed-Use", location: "Business Bay", value: 2500000000, completionYear: 2020, units: 200 },
+        { name: "The Sterling", type: "Residential", location: "Business Bay", value: 1800000000, completionYear: 2017, units: 150 },
+        { name: "Langham Place", type: "Hospitality", location: "Downtown Dubai", value: 2200000000, completionYear: 2021, units: 160 },
+        { name: "The Pad", type: "Residential", location: "Business Bay", value: 1500000000, completionYear: 2018, units: 230 }
+      ]
+    },
+    "Danube Properties": {
+      id: 'danube001',
+      name: 'Danube Properties',
+      foundedYear: 2014,
+      website: 'https://www.danubeproperties.ae',
+      contact: {
+        phone: '+971 4 304 1111',
+        email: 'contact@danubeproperties.ae'
+      },
+      headquarters: 'Dubai, UAE',
+      description: 'Danube Properties is the fastest growing private real estate developer in Dubai with a focus on affordable luxury. The company has delivered numerous residential projects and has become known for its 1% payment plan.',
+      revenueBreakdown: [
+        { year: 2014, residential: 1, commercial: 0, mixedUse: 0 },
+        { year: 2015, residential: 2, commercial: 1, mixedUse: 0 },
+        { year: 2016, residential: 3, commercial: 1, mixedUse: 0 },
+        { year: 2017, residential: 5, commercial: 2, mixedUse: 1 },
+        { year: 2018, residential: 7, commercial: 3, mixedUse: 1 },
+        { year: 2019, residential: 9, commercial: 4, mixedUse: 2 },
+        { year: 2020, residential: 11, commercial: 5, mixedUse: 2 },
+        { year: 2021, residential: 13, commercial: 6, mixedUse: 3 },
+        { year: 2022, residential: 15, commercial: 7, mixedUse: 3 },
+        { year: 2023, residential: 18, commercial: 8, mixedUse: 4 }
+      ],
+      totalProjects: 22,
+      totalValue: 35000000000,
+      avgROI: 7.5,
+      clientSatisfaction: 4.1,
+      topProperties: [
+        { name: "Dreamz", type: "Residential", location: "Al Furjan", value: 1000000000, completionYear: 2017, units: 700 },
+        { name: "Glamz", type: "Residential", location: "Al Furjan", value: 1200000000, completionYear: 2018, units: 500 },
+        { name: "Miraclz", type: "Residential", location: "Arjan", value: 1500000000, completionYear: 2019, units: 600 },
+        { name: "Resortz", type: "Residential", location: "Arjan", value: 1300000000, completionYear: 2020, units: 450 },
+        { name: "Bayz", type: "Residential", location: "Business Bay", value: 1800000000, completionYear: 2021, units: 350 }
       ]
     }
   };
