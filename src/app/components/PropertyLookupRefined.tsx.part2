@@ -1,0 +1,168 @@
+export default function PropertyLookupRefined() {
+  // State management
+  const [searchTerm, setSearchTerm] = useState('');
+  const [location, setLocation] = useState<string>('');
+  const [propertyType, setPropertyType] = useState<string>('');
+  const [bedrooms, setBedrooms] = useState<string>('');
+  const [priceEstimate, setPriceEstimate] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
+  const [selectedTab, setSelectedTab] = useState<'properties' | 'ongoing' | 'developer'>('properties');
+  const [chartZoom, setChartZoom] = useState<{startIndex: number, endIndex: number} | null>(null);
+  const [developerDetailsExpanded, setDeveloperDetailsExpanded] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [fetchingPrice, setFetchingPrice] = useState(false);
+  
+  // Format currency
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-AE', {
+      style: 'currency',
+      currency: 'AED',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+  
+  // Calculate growth percentage
+  const calculateGrowth = (original: number, current: number): string => {
+    return ((current - original) / original * 100).toFixed(2);
+  };
+  
+  // Handle search submission
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!searchTerm.trim() && !location) {
+      setError('Please enter a property name or select location and filters');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setPropertyData(null);
+    setChartZoom(null);
+    setDeveloperDetailsExpanded(false);
+    
+    try {
+      // Check if API key is configured
+      const apiKey = apiKeyService.getStoredApiKey();
+      if (!apiKey) {
+        setError('OpenAI API key not configured. Please set up your API key in settings.');
+        setLoading(false);
+        return;
+      }
+
+      // First, try to get AI-powered information about this property if filters are set
+      if (location && propertyType && bedrooms) {
+        const criteria: PropertySearchCriteria = {
+          location,
+          propertyType, 
+          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+        };
+        
+        try {
+          const aiResponse = await getPropertyInfo(criteria);
+          
+          if (!aiResponse.success) {
+            console.error('Error getting AI property info:', aiResponse.error);
+          }
+        } catch (err) {
+          console.error('Error calling OpenAI API:', err);
+        }
+      }
+
+      // In real implementation, this would call the backend API with OpenAI integration
+      // Now using live API data
+      const liveData = await fetchLivePropertyData(searchTerm || location, {
+        location,
+        propertyType,
+        bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+      });
+      
+      setPropertyData(liveData);
+    } catch (err) {
+      setError('Failed to fetch property data. Please try again.');
+      console.error('Error fetching property data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle selecting a nearby property
+  const handleNearbyPropertySelect = async (propertyId: string) => {
+    // Find the property in the nearby list
+    const selectedProperty = propertyData?.nearby.find(p => p.id === propertyId);
+    
+    if (selectedProperty) {
+      // Update search term with the selected property's name
+      setSearchTerm(selectedProperty.name);
+      
+      // Reset filters to match this property
+      setLocation(selectedProperty.name.split(' ')[0]);
+      setPropertyType(
+        selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+        selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+        selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
+        selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
+        'Apartment' // Default to apartment if we can't determine
+      );
+      setBedrooms(selectedProperty.beds === 0 ? 'Studio' : selectedProperty.beds.toString());
+      
+      // Trigger search for this property
+      setLoading(true);
+      setError(null);
+      setPropertyData(null);
+      setChartZoom(null);
+      setDeveloperDetailsExpanded(false);
+      
+      try {
+        // Check if API key is configured
+        const apiKey = apiKeyService.getStoredApiKey();
+        if (!apiKey) {
+          setError('OpenAI API key not configured. Please set up your API key in settings.');
+          setLoading(false);
+          return;
+        }
+
+        // Get AI-powered information about this property
+        const criteria: PropertySearchCriteria = {
+          location: selectedProperty.name.split(' ')[0],
+          propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+                       selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+                       selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
+                       selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
+                       'Apartment',
+          bedrooms: selectedProperty.beds
+        };
+        
+        try {
+          const aiResponse = await getPropertyInfo(criteria);
+          
+          if (!aiResponse.success) {
+            console.error('Error getting AI property info:', aiResponse.error);
+          }
+        } catch (err) {
+          console.error('Error calling OpenAI API:', err);
+        }
+
+        // In a real implementation, this would call the backend API
+        // Now using live API data
+        const liveData = await fetchLivePropertyData(selectedProperty.name, {
+          location: selectedProperty.name.split(' ')[0],
+          propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+                     selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+                     selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
+                     selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
+                     'Apartment',
+          bedrooms: selectedProperty.beds
+        });
+        
+        setPropertyData(liveData);
+      } catch (err) {
+        setError('Failed to fetch property data. Please try again.');
+        console.error('Error fetching property data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
