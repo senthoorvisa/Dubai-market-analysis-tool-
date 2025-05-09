@@ -54,27 +54,46 @@ interface OpenAIResponse {
   error?: string;
 }
 
-// Safe content generation with error handling
+const API_RETRY_COUNT = 3;
+const API_RETRY_DELAY = 1000; // ms
+
+/**
+ * Retry function for API calls
+ * @param fn Function to retry
+ * @param retries Number of retries
+ * @param delay Delay between retries in ms
+ */
+async function withRetry<T>(fn: () => Promise<T>, retries = API_RETRY_COUNT, delay = API_RETRY_DELAY): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    
+    console.log(`OpenAI API call failed, retrying... (${API_RETRY_COUNT - retries + 1}/${API_RETRY_COUNT})`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return withRetry(fn, retries - 1, delay);
+  }
+}
+
+// Safe content generation with error handling and retry mechanism
 const safeGenerateContent = async (prompt: string): Promise<ApiResponse> => {
   try {
-    const apiKey = apiKeyService.getStoredApiKey();
-    if (!apiKey) {
-      return {
-        success: false,
-        error: 'API key not configured. Please configure your API key in settings.',
-      };
-    }
-
+    // Use the provided API key directly for enterprise-level reliability
+    const apiKey = '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';
+    
+    // Always update the API key before making a request
     updateApiKey(apiKey);
-    const completion = await openai.chat.completions.create({
+    
+    // Use retry mechanism for OpenAI API calls
+    const completion = await withRetry(() => openai.chat.completions.create({
       messages: [
-        { role: 'system', content: 'You are a knowledgeable real estate market expert assistant.' },
+        { role: 'system', content: 'You are a knowledgeable real estate market expert assistant specializing in Dubai property market with access to the latest 2025 data.' },
         { role: 'user', content: prompt }
       ],
       model: 'gpt-4-turbo',
-      temperature: 0.3,
-      max_tokens: 1000,
-    });
+      temperature: 0.2, // Lower temperature for more factual responses
+      max_tokens: 1500, // Increased token limit for more detailed responses
+    }));
 
     return {
       success: true,

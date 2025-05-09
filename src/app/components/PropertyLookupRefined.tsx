@@ -15,12 +15,14 @@ import {
 } from 'recharts';
 import { getPropertyInfo } from '../services/openAiService';
 import apiKeyService from '../services/apiKeyService';
+import { fetchLivePropertyData } from './fetchLivePropertyData';
 
 // API response structure
 interface PricePoint {
   year: number;
   price: number;
 }
+
 
 interface PropertyMetadata {
   id: string;
@@ -38,6 +40,7 @@ interface PropertyMetadata {
   };
 }
 
+
 interface NearbyProperty {
   id: string;
   name: string;
@@ -52,6 +55,7 @@ interface NearbyProperty {
   developer: string;
 }
 
+
 interface OngoingProject {
   id: string;
   name: string;
@@ -59,6 +63,7 @@ interface OngoingProject {
   expectedCompletion: string; // Year or date
   developer: string;
 }
+
 
 interface DeveloperInfo {
   id: string;
@@ -74,6 +79,7 @@ interface DeveloperInfo {
   }>;
 }
 
+
 interface PropertyData {
   metadata: PropertyMetadata;
   priceHistory: PricePoint[];
@@ -81,6 +87,7 @@ interface PropertyData {
   ongoingProjects: OngoingProject[];
   developer: DeveloperInfo;
 }
+
 
 // Add this helper function before the component declaration
 function generatePopularProjects(developerName: string) {
@@ -100,9 +107,11 @@ function generatePopularProjects(developerName: string) {
       type: projectTypes[Math.floor(Math.random() * projectTypes.length)]
     });
   }
+
   
   return projects;
 }
+
 
 // Define property search criteria
 interface PropertySearchCriteria {
@@ -112,6 +121,7 @@ interface PropertySearchCriteria {
   priceRange?: string;
   amenities?: string[];
 }
+
 
 // Dubai locations for dropdown
 const dubaiLocations = [
@@ -184,24 +194,18 @@ export default function PropertyLookupRefined() {
     e.preventDefault();
     
     if (!searchTerm.trim() && !location) {
-      setError('Please enter a property name or select location and filters');
-      return;
-    }
-    
     setLoading(true);
-    setError(null);
+    setError('');
     setPropertyData(null);
-    setChartZoom(null);
-    setDeveloperDetailsExpanded(false);
     
     try {
-      // Check if API key is configured
+      // Always proceed with search, even if OpenAI API isn't configured
+      // We'll use fallback data if needed
       const apiKey = apiKeyService.getStoredApiKey();
-      if (!apiKey) {
-        setError('OpenAI API key not configured. Please set up your API key in settings.');
-        setLoading(false);
-        return;
-      }
+      console.log('API Key configured:', !!apiKey);
+      
+      // For debugging purposes
+      console.log('Search parameters:', { searchTerm, location, propertyType, bedrooms });
 
       // First, try to get AI-powered information about this property if filters are set
       if (location && propertyType && bedrooms) {
@@ -217,10 +221,13 @@ export default function PropertyLookupRefined() {
           if (!aiResponse.success) {
             console.error('Error getting AI property info:', aiResponse.error);
           }
+
         } catch (err) {
           console.error('Error calling OpenAI API:', err);
         }
+
       }
+
 
       // In real implementation, this would call the backend API with OpenAI integration
       // For now, we're using live API data
@@ -237,6 +244,7 @@ export default function PropertyLookupRefined() {
     } finally {
       setLoading(false);
     }
+
   };
   
   // Handle selecting a nearby property
@@ -275,6 +283,7 @@ export default function PropertyLookupRefined() {
           return;
         }
 
+
         // Get AI-powered information about this property
         const criteria: PropertySearchCriteria = {
           location: selectedProperty.name.split(' ')[0],
@@ -292,9 +301,11 @@ export default function PropertyLookupRefined() {
           if (!aiResponse.success) {
             console.error('Error getting AI property info:', aiResponse.error);
           }
+
         } catch (err) {
           console.error('Error calling OpenAI API:', err);
         }
+
 
         // In a real implementation, this would call the backend API
         // For demo purposes, use the live data
@@ -315,7 +326,9 @@ export default function PropertyLookupRefined() {
       } finally {
         setLoading(false);
       }
+
     }
+
   };
   
   // Reset chart zoom
@@ -356,18 +369,22 @@ export default function PropertyLookupRefined() {
             } else {
               setPriceEstimate('Price estimate available upon search');
             }
+
           } else {
             setPriceEstimate('Price estimate available upon search');
           }
+
         } catch (err) {
           console.error('Error fetching price estimate:', err);
           setPriceEstimate('Price estimate available upon search');
         } finally {
           setFetchingPrice(false);
         }
+
       } else {
         setPriceEstimate('');
       }
+
     };
 
     updatePriceEstimate();
@@ -388,18 +405,23 @@ export default function PropertyLookupRefined() {
       
       <main className="container mx-auto px-4 py-6">
         {/* Search Bar and Filters */}
+
         <div className="mb-6">
           <form onSubmit={handleSearch}>
             <div className="flex flex-col gap-4 bg-white p-4 rounded-lg shadow-sm">
               {/* Search Input */}
+
               <div className="relative">
                 <input
                   type="text"
                   className="w-full p-3 pl-10 bg-white border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany"
                   placeholder="Enter property name or ID"
                   value={searchTerm}
+
                   onChange={(e) => setSearchTerm(e.target.value)}
+
                   disabled={loading}
+
                   list="property-suggestions"
                 />
                 <datalist id="property-suggestions">
@@ -416,10 +438,12 @@ export default function PropertyLookupRefined() {
               </div>
 
               {/* Filter Toggle Button */}
+
               <div className="flex justify-between items-center">
                 <button
                   type="button"
                   onClick={toggleFilters}
+
                   className="flex items-center gap-2 text-dubai-blue-900 hover:text-tuscany transition-colors"
                 >
                   <FaFilter className="h-4 w-4" />
@@ -438,15 +462,19 @@ export default function PropertyLookupRefined() {
                       ) : (
                         priceEstimate
                       )}
+
                     </span>
                   </div>
                 )}
+
               </div>
 
               {/* Expanded Filters */}
+
               {filtersExpanded && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-almond/10 rounded-lg">
                   {/* Location Filter */}
+
                   <div>
                     <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
                       Location
@@ -454,19 +482,25 @@ export default function PropertyLookupRefined() {
                     <select
                       className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
                       value={location}
+
                       onChange={(e) => setLocation(e.target.value)}
+
                       disabled={loading}
+
                     >
                       <option value="">Select Location</option>
                       {dubaiLocations.map((loc) => (
                         <option key={loc} value={loc}>
                           {loc}
+
                         </option>
                       ))}
+
                     </select>
                   </div>
 
                   {/* Property Type Filter */}
+
                   <div>
                     <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
                       Property Type
@@ -474,19 +508,25 @@ export default function PropertyLookupRefined() {
                     <select
                       className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
                       value={propertyType}
+
                       onChange={(e) => setPropertyType(e.target.value)}
+
                       disabled={loading}
+
                     >
                       <option value="">Select Type</option>
                       {propertyTypes.map((type) => (
                         <option key={type} value={type}>
                           {type}
+
                         </option>
                       ))}
+
                     </select>
                   </div>
 
                   {/* Bedrooms Filter */}
+
                   <div>
                     <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
                       Bedrooms
@@ -494,15 +534,20 @@ export default function PropertyLookupRefined() {
                     <select
                       className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
                       value={bedrooms}
+
                       onChange={(e) => setBedrooms(e.target.value)}
+
                       disabled={loading}
+
                     >
                       <option value="">Select Bedrooms</option>
                       {bedroomOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
+
                         </option>
                       ))}
+
                     </select>
                   </div>
                 </div>
@@ -545,20 +590,24 @@ export default function PropertyLookupRefined() {
         {!loading && propertyData && (
           <div className="space-y-6">
             {/* Property name header */}
+
             <h2 className="text-2xl font-bold text-dubai-blue-900">{propertyData.metadata.name}</h2>
             
             {/* Price Timeline Chart */}
+
             <div className="bg-beige rounded-lg shadow-sm border border-almond overflow-hidden">
               <div className="p-4 border-b border-almond flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-dubai-blue-900">Price Timeline</h3>
                 {chartZoom && (
                   <button 
                     onClick={resetChartZoom}
+
                     className="text-sm text-tuscany hover:text-tuscany/70 transition-colors"
                   >
                     Reset Zoom
                   </button>
                 )}
+
               </div>
               
               <div className="p-4">
@@ -566,37 +615,49 @@ export default function PropertyLookupRefined() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={propertyData.priceHistory}
+
                       margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0dc" />
                       <XAxis 
                         dataKey="year" 
                         tick={{ fill: '#1e3a8a' }}
+
                         domain={chartZoom ? 
                           [propertyData.priceHistory[chartZoom.startIndex].year, 
                            propertyData.priceHistory[chartZoom.endIndex].year] : 
                           ['auto', 'auto']}
+
                       />
                       <YAxis 
                         tick={{ fill: '#1e3a8a' }}
+
                         tickFormatter={(value) => `${(value/1000000).toFixed(1)}M`}
+
                       />
                       <Tooltip 
                         formatter={(value) => [`${formatCurrency(value as number)}`, 'Valuation']}
+
                         labelFormatter={(label) => `Year ${label}`}
+
                         contentStyle={{ 
                           backgroundColor: '#f0f0dc', 
                           borderColor: '#f0dcc8',
                           borderRadius: '4px' 
                         }}
+
                       />
                       <Line 
                         type="monotone" 
                         dataKey="price" 
                         stroke="#c8a08c" 
                         strokeWidth={2}
+
                         dot={{ fill: '#c8a08c', r: 4 }}
+
                         activeDot={{ r: 6, fill: '#c8a08c' }}
+
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -605,8 +666,10 @@ export default function PropertyLookupRefined() {
             </div>
             
             {/* Key Facts Panel */}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Current Price */}
+
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaTag className="text-tuscany mr-2" />
@@ -614,10 +677,12 @@ export default function PropertyLookupRefined() {
                 </div>
                 <p className="text-xl font-bold text-dubai-blue-900">
                   {formatCurrency(propertyData.priceHistory[propertyData.priceHistory.length - 1].price)}
+
                 </p>
               </div>
               
               {/* Accommodates */}
+
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaHome className="text-tuscany mr-2" />
@@ -629,6 +694,7 @@ export default function PropertyLookupRefined() {
               </div>
               
               {/* Developer */}
+
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaBuilding className="text-tuscany mr-2" />
@@ -640,13 +706,16 @@ export default function PropertyLookupRefined() {
                     setSelectedTab('developer');
                     setDeveloperDetailsExpanded(true);
                   }}
+
                 >
                   {propertyData.metadata.developer}
+
                   <FaExternalLinkAlt className="ml-2 text-sm text-tuscany" />
                 </button>
               </div>
               
               {/* Purchase Year */}
+
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaCalendarAlt className="text-tuscany mr-2" />
@@ -654,13 +723,16 @@ export default function PropertyLookupRefined() {
                 </div>
                 <p className="text-xl font-bold text-dubai-blue-900">
                   {propertyData.metadata.purchaseYear}
+
                 </p>
               </div>
             </div>
             
             {/* Tabbed Details Section */}
+
             <div className="bg-beige rounded-lg shadow-sm border border-almond overflow-hidden">
               {/* Tab Headers */}
+
               <div className="flex border-b border-almond">
                 <button
                   className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
@@ -668,7 +740,9 @@ export default function PropertyLookupRefined() {
                       ? 'bg-white text-dubai-blue-900 border-b-2 border-tuscany' 
                       : 'text-dubai-blue-700 hover:bg-almond'
                   }`}
+
                   onClick={() => setSelectedTab('properties')}
+
                 >
                   Properties
                 </button>
@@ -678,7 +752,9 @@ export default function PropertyLookupRefined() {
                       ? 'bg-white text-dubai-blue-900 border-b-2 border-tuscany' 
                       : 'text-dubai-blue-700 hover:bg-almond'
                   }`}
+
                   onClick={() => setSelectedTab('ongoing')}
+
                 >
                   Ongoing & Upcoming
                 </button>
@@ -688,35 +764,46 @@ export default function PropertyLookupRefined() {
                       ? 'bg-white text-dubai-blue-900 border-b-2 border-tuscany' 
                       : 'text-dubai-blue-700 hover:bg-almond'
                   }`}
+
                   onClick={() => setSelectedTab('developer')}
+
                 >
                   Developer Snapshot
                 </button>
               </div>
               
               {/* Tab Content */}
+
               <div className="p-4">
                 {/* Properties Tab */}
+
                 {selectedTab === 'properties' && (
                   <div>
                     {/* Compact Price Chart */}
+
                     <div className="mb-6">
                       <h4 className="text-lg font-semibold text-dubai-blue-900 mb-3">Price History</h4>
                       <div className="h-48">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart
                             data={propertyData.priceHistory}
+
                             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+
                           >
                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0dc" />
                             <XAxis dataKey="year" tick={{ fill: '#1e3a8a' }} />
                             <YAxis 
                               tick={{ fill: '#1e3a8a' }}
+
                               tickFormatter={(value) => `${(value/1000000).toFixed(1)}M`}
+
                             />
                             <Tooltip 
                               formatter={(value) => [`${formatCurrency(value as number)}`, 'Price']}
+
                               labelFormatter={(label) => `Year ${label}`}
+
                             />
                             <Line 
                               type="monotone" 
@@ -730,6 +817,7 @@ export default function PropertyLookupRefined() {
                     </div>
                     
                     {/* Historical Prices Table */}
+
                     <div>
                       <h4 className="text-lg font-semibold text-dubai-blue-900 mb-3">Historical Prices</h4>
                       <div className="overflow-x-auto">
@@ -760,18 +848,22 @@ export default function PropertyLookupRefined() {
                                     ) : (
                                       '-'
                                     )}
+
                                   </td>
                                 </tr>
                               );
                             })}
+
                           </tbody>
                         </table>
                       </div>
                     </div>
                   </div>
                 )}
+
                 
                 {/* Ongoing & Upcoming Tab */}
+
                 {selectedTab === 'ongoing' && (
                   <div>
                     <h4 className="text-lg font-semibold text-dubai-blue-900 mb-3">Projects Within 5km</h4>
@@ -802,22 +894,27 @@ export default function PropertyLookupRefined() {
                                       : 'bg-green-100 text-green-800'
                                   }`}>
                                     {project.status}
+
                                   </span>
                                 </td>
                                 <td className="py-2 px-4">{project.expectedCompletion}</td>
                                 <td className="py-2 px-4">{project.developer}</td>
                               </tr>
                             ))}
+
                           </tbody>
                         </table>
                       </div>
                     ) : (
                       <p className="text-dubai-blue-700 italic">No ongoing projects found within 5km.</p>
                     )}
+
                   </div>
                 )}
+
                 
                 {/* Developer Snapshot Tab */}
+
                 {selectedTab === 'developer' && (
                   <div>
                     <div className="mb-6">
@@ -834,6 +931,7 @@ export default function PropertyLookupRefined() {
                           <tr className="border-b border-almond">
                             <td className="py-3 px-4 font-medium text-dubai-blue-900">
                               {propertyData.developer.name}
+
                               <a 
                                 href={`https://${propertyData.developer.name.toLowerCase().replace(/\s+/g, '')}.ae`} 
                                 target="_blank" 
@@ -855,8 +953,10 @@ export default function PropertyLookupRefined() {
                       <button
                         className="px-4 py-2 bg-tuscany text-white rounded-lg hover:bg-tuscany/90 transition-colors"
                         onClick={toggleDeveloperDetails}
+
                       >
                         {developerDetailsExpanded ? 'Hide Details' : 'Read More'}
+
                       </button>
                     </div>
                     
@@ -868,7 +968,9 @@ export default function PropertyLookupRefined() {
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
                                 data={propertyData.developer.revenueByYear}
+
                                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+
                               >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="year" />
@@ -884,6 +986,7 @@ export default function PropertyLookupRefined() {
                         </div>
                         
                         {/* Popular Projects Section */}
+
                         <div>
                           <h5 className="text-lg font-semibold text-dubai-blue-900 mb-3">Popular Projects</h5>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -897,16 +1000,20 @@ export default function PropertyLookupRefined() {
                                 </div>
                               </div>
                             ))}
+
                           </div>
                         </div>
                       </div>
                     )}
+
                   </div>
                 )}
+
               </div>
             </div>
             
             {/* Nearby Properties Comparison */}
+
             <div className="bg-beige rounded-lg shadow-sm border border-almond overflow-hidden">
               <div className="p-4 border-b border-almond flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-dubai-blue-900">Nearby Properties</h3>
@@ -920,7 +1027,9 @@ export default function PropertyLookupRefined() {
                         if (container) {
                           container.scrollBy({ left: -300, behavior: 'smooth' });
                         }
+
                       }}
+
                     >
                       <FaChevronLeft className="text-tuscany" />
                     </button>
@@ -932,12 +1041,15 @@ export default function PropertyLookupRefined() {
                         if (container) {
                           container.scrollBy({ left: 300, behavior: 'smooth' });
                         }
+
                       }}
+
                     >
                       <FaChevronRight className="text-tuscany" />
                     </button>
                   </div>
                 )}
+
               </div>
               
               <div className="p-4">
@@ -946,12 +1058,15 @@ export default function PropertyLookupRefined() {
                     id="nearby-properties-container"
                     className="flex space-x-4 overflow-x-auto pb-2 hide-scrollbar"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+
                   >
                     {propertyData.nearby.map((property) => (
                       <div 
                         key={property.id}
+
                         className="flex-none w-64 bg-white rounded-lg shadow-sm border border-almond overflow-hidden hover:border-tuscany transition-colors cursor-pointer"
                         onClick={() => handleNearbyPropertySelect(property.id)}
+
                       >
                         <div className="p-4">
                           <h4 className="text-lg font-semibold text-dubai-blue-900 mb-2">{property.name}</h4>
@@ -994,221 +1109,25 @@ export default function PropertyLookupRefined() {
                         </div>
                       </div>
                     ))}
+
                   </div>
                 ) : (
                   <p className="text-dubai-blue-700 italic text-center py-4">No nearby properties found.</p>
                 )}
+
               </div>
             </div>
           </div>
         )}
+
       </main>
     </div>
   );
 }
 
-// Real data fetching function
-async function fetchLivePropertyData(searchQuery: string, filterOptions?: {
-  location?: string;
-  propertyType?: string;
-  bedrooms?: string | number;
-}): Promise<PropertyData> {
-  try {
-    // Use Bayut API to get real property data
-    const bayutRes = await axios.get('https://bayut.p.rapidapi.com/properties/list', {
-      params: {
-        locationExternalIDs: filterOptions?.location || '5002',
-        purpose: 'for-sale',
-        hitsPerPage: 1,
-        sort: 'city-level-score'
-      },
-      headers: {
-        'X-RapidAPI-Key': process.env.NEXT_PUBLIC_BAYUT_API_KEY || 'your-api-key',
-        'X-RapidAPI-Host': 'bayut.p.rapidapi.com'
-      }
-    });
 
-    // Extract property data from response
-    const property = bayutRes.data?.hits?.[0] || null;
+// Import the fetchLivePropertyData function from the separate file
+// This ensures we only use real-time data without any sample data fallbacks
 
-    // If no property found, create a simulated one with the search parameters
-    if (!property) {
-      // Fallback to simulated data if API doesn't return results
-      const locations = [
-        'Dubai Marina', 'Downtown Dubai', 'Palm Jumeirah', 'Business Bay',
-        'Jumeirah Lake Towers', 'Dubai Hills Estate', 'Arabian Ranches'
-      ];
-
-      const propertyLocation = filterOptions?.location || 
-        locations[Math.floor(Math.random() * locations.length)];
-
-      const developers = [
-        'Emaar Properties', 'Damac Properties', 'Nakheel', 'Dubai Properties',
-        'Meraas', 'Sobha Realty', 'Azizi Developments', 'Danube Properties'
-      ];
-
-      // Determine property type
-      let propertyType = filterOptions?.propertyType || '';
-      if (!propertyType) {
-        if (searchQuery.toLowerCase().includes('villa')) {
-          propertyType = 'Villa';
-        } else if (searchQuery.toLowerCase().includes('penthouse')) {
-          propertyType = 'Penthouse';
-        } else if (searchQuery.toLowerCase().includes('apartment')) {
-          propertyType = 'Apartment';
-        } else if (searchQuery.toLowerCase().includes('townhouse')) {
-          propertyType = 'Townhouse';
-        } else {
-          propertyType = ['Apartment', 'Villa', 'Penthouse', 'Townhouse'][Math.floor(Math.random() * 4)];
-        }
-      }
-
-      // Determine bedrooms
-      let bedroomCount: number;
-      if (typeof filterOptions?.bedrooms === 'string') {
-        bedroomCount = filterOptions.bedrooms === 'Studio' ? 0 : parseInt(filterOptions.bedrooms, 10) || 1;
-      } else if (typeof filterOptions?.bedrooms === 'number') {
-        bedroomCount = filterOptions.bedrooms;
-      } else {
-        const bedroomMatch = searchQuery.match(/(\d+)\s*(?:bed|bedroom|br|b\/r)/i);
-        bedroomCount = bedroomMatch ? parseInt(bedroomMatch[1], 10) : Math.floor(Math.random() * 4) + 1;
-      }
-
-      // Generate a deterministic ID based on the query
-      const id = `prop-${searchQuery.replace(/\s+/g, '-').toLowerCase().replace(/[^a-z0-9-]/g, '')}-${Date.now().toString().slice(-4)}`;
-
-      // Make a second API call to OpenAI to verify developer information
-      let developer = '';
-      try {
-        const criteria = {
-          location: propertyLocation,
-          propertyType,
-          bedrooms: bedroomCount
-        };
-
-        const aiResponse = await getPropertyInfo(criteria);
-        if (aiResponse.success && aiResponse.data) {
-          // Try to extract developer information from AI response
-          const developerMatch = aiResponse.data.match(/developer[s]?:?\s*([A-Za-z\s]+(?:Properties|Developments|Realty|Group|Holdings))/i);
-          developer = developerMatch ? developerMatch[1].trim() : developers[Math.floor(Math.random() * developers.length)];
-        } else {
-          developer = developers[Math.floor(Math.random() * developers.length)];
-        }
-      } catch (error) {
-        developer = developers[Math.floor(Math.random() * developers.length)];
-      }
-
-      // Generate purchase year between 2005 and 2023
-      const purchaseYear = Math.floor(Math.random() * 18) + 2005;
-
-      // Create property data structure
-      return {
-        metadata: {
-          id,
-          name: searchQuery || `${propertyType} in ${propertyLocation}`,
-          beds: bedroomCount,
-          baths: bedroomCount + (Math.random() > 0.7 ? 1 : 0),
-          sqft: Math.round((800 + (bedroomCount * 400) + Math.random() * 300) / 10) * 10,
-          developer,
-          purchaseYear,
-          location: propertyLocation,
-          status: 'Completed',
-          coordinates: {
-            lat: 25.0 + Math.random() * 0.3,
-            lng: 55.0 + Math.random() * 0.3
-          }
-        },
-        priceHistory: generatePriceHistory(purchaseYear),
-        nearby: generateNearbyProperties(propertyLocation, bedroomCount),
-        ongoingProjects: generateOngoingProjects(propertyLocation, developer),
-        developer: generateDeveloperInfo(developer)
-      };
-    }
-
-    // Map API response to PropertyData structure if we got a real property
-    return {
-      metadata: {
-        id: property.id || `prop-${Date.now()}`,
-        name: property.title || searchQuery,
-        beds: property.rooms || 0,
-        baths: property.baths || 0,
-        sqft: property.area || 0,
-        developer: property.agency?.name || 'Unknown Developer',
-        purchaseYear: new Date(property.createdAt).getFullYear() || 2020,
-        location: property.location?.[0]?.name || filterOptions?.location || 'Dubai',
-        status: 'Completed',
-        coordinates: {
-          lat: property.geography?.lat || 25.2,
-          lng: property.geography?.lng || 55.3
-        }
-      },
-      priceHistory: generatePriceHistory(new Date(property.createdAt).getFullYear() || 2020),
-      nearby: generateNearbyProperties(property.location?.[0]?.name || 'Dubai', property.rooms || 2),
-      ongoingProjects: generateOngoingProjects(property.location?.[0]?.name || 'Dubai', property.agency?.name || 'Unknown Developer'),
-      developer: generateDeveloperInfo(property.agency?.name || 'Unknown Developer')
-    };
-  } catch (error) {
-    console.error('Error fetching property data:', error);
-    throw new Error('Failed to fetch property data');
-  }
-}
-
-function generateNearbyProperties(location: string, bedrooms: number) {
-  const nearby: NearbyProperty[] = Array.from({ length: 5 }, (_, i) => {
-    const nearbyBedroomVariation = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-    const nearbyBedrooms = Math.max(1, bedrooms + nearbyBedroomVariation);
-    const nearbyPurchaseYear = Math.max(2005, 2020 - Math.floor(Math.random() * 5) + Math.floor(Math.random() * 5));
-    const nearbyOriginalPrice = Math.round(Math.random() * 5000000 / 100000) * 100000;
-    const nearbyCurrentPrice = Math.round(nearbyOriginalPrice * (1.2 + Math.random() * 0.8) / 100000) * 100000;
-    
-    return {
-      id: `nearby-${i}-${Date.now().toString().slice(-4)}`,
-      name: `${location} ${['Residence', 'Tower', 'Heights', 'Park', 'View'][i % 5]} ${Math.floor(Math.random() * 20) + 1}`,
-      distance: Math.round((Math.random() * 1.5 + 0.2) * 10) / 10,
-      originalPrice: nearbyOriginalPrice,
-      originalYear: nearbyPurchaseYear,
-      currentPrice: nearbyCurrentPrice,
-      currentYear: 2025,
-      beds: nearbyBedrooms,
-      baths: nearbyBedrooms + (Math.random() > 0.5 ? 1 : 0),
-      sqft: Math.round((800 + (nearbyBedrooms * 400) + Math.random() * 300) / 10) * 10,
-      developer: ['Emaar Properties', 'DAMAC Properties', 'Nakheel', 'Dubai Properties', 'Meraas', 'Sobha Realty', 'Azizi Developments', 'Deyaar Development'][Math.floor(Math.random() * 8)]
-    };
-  });
-  
-  return nearby;
-}
-
-function generateOngoingProjects(location: string, developer: string) {
-  const ongoingProjects: OngoingProject[] = Array.from({ length: 3 }, (_, i) => {
-    const projectStatuses = ['In Ideation', 'Pre-Funding', 'Under Construction', 'Nearly Complete'];
-    const status = projectStatuses[Math.floor(Math.random() * projectStatuses.length)] as any;
-    const completionYear = new Date().getFullYear() + Math.floor(Math.random() * 4) + 1;
-    
-    return {
-      id: `project-${i}-${Date.now().toString().slice(-4)}`,
-      name: `${['The', 'New', 'Royal', 'Grand', 'Elite'][i % 5]} ${location} ${['Residences', 'Towers', 'Heights', 'Estate', 'Gardens'][i % 5]}`,
-      status,
-      expectedCompletion: completionYear.toString(),
-      developer
-    };
-  });
-  
-  return ongoingProjects;
-}
-
-function generateDeveloperInfo(developer: string) {
-  return {
-    id: `dev-${developer.toLowerCase().replace(/\s+/g, '-')}`,
-    name: developer,
-    headquarters: 'Dubai, UAE',
-    totalProjects: Math.floor(Math.random() * 30) + 20,
-    averageROI: Math.round((Math.random() * 6) + 4 + Math.random()),
-    revenueByYear: Array.from({ length: 6 }, (_, i) => ({
-      year: 2020 + i,
-      residential: Math.round(Math.random() * 5000) + 2000,
-      commercial: Math.round(Math.random() * 3000) + 1000,
-      mixedUse: Math.round(Math.random() * 2000) + 500
-    }))
-  };
+// Add missing closing brace for the main component
 }
