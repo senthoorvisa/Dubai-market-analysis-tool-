@@ -194,13 +194,16 @@ export default function PropertyLookupRefined() {
     e.preventDefault();
     
     if (!searchTerm.trim() && !location) {
+      setError('Please enter a search term or select a location');
+      return;
+    }
+    
     setLoading(true);
     setError('');
     setPropertyData(null);
     
     try {
       // Always proceed with search, even if OpenAI API isn't configured
-      // We'll use fallback data if needed
       const apiKey = apiKeyService.getStoredApiKey();
       console.log('API Key configured:', !!apiKey);
       
@@ -221,30 +224,26 @@ export default function PropertyLookupRefined() {
           if (!aiResponse.success) {
             console.error('Error getting AI property info:', aiResponse.error);
           }
-
         } catch (err) {
           console.error('Error calling OpenAI API:', err);
         }
-
       }
 
-
-      // In real implementation, this would call the backend API with OpenAI integration
-      // For now, we're using live API data
-      const liveData = await fetchLivePropertyData(searchTerm || location, {
+      // Use the fetchLivePropertyData function to get real-time data
+      console.log('Fetching property data with:', { searchTerm, location, propertyType, bedrooms });
+      const data = await fetchLivePropertyData(searchTerm || location, {
         location,
         propertyType,
-        bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+        bedrooms
       });
       
-      setPropertyData(liveData);
+      setPropertyData(data);
     } catch (err) {
       setError('Failed to fetch property data. Please try again.');
       console.error('Error fetching property data:', err);
     } finally {
       setLoading(false);
     }
-
   };
   
   // Handle selecting a nearby property
@@ -1123,11 +1122,4 @@ export default function PropertyLookupRefined() {
       </main>
     </div>
   );
-}
-
-
-// Import the fetchLivePropertyData function from the separate file
-// This ensures we only use real-time data without any sample data fallbacks
-
-// Add missing closing brace for the main component
 }

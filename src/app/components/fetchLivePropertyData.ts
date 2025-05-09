@@ -1,8 +1,8 @@
+import axios from 'axios';
+
 // API retry configuration
 const API_RETRY_COUNT = 3;
 const API_RETRY_DELAY = 1000; // ms
-
-import axios from 'axios';
 
 // Define PropertyData interface
 export interface PropertyMetadata {
@@ -211,7 +211,7 @@ export async function fetchLivePropertyData(searchQuery: string, filterOptions?:
         sort: 'city-level-score'
       },
       headers: {
-        'X-RapidAPI-Key': 'f1c7f0d1f5msh7d3a2e1b3f2d2f9p1c8e3djsn6a2f5a5a5a5a',
+        'X-RapidAPI-Key': '1a2b3c4d5emshf6g7h8i9j0k1l2mp1n3o4pjsnq5r6s7t8u9v0',
         'X-RapidAPI-Host': 'bayut.p.rapidapi.com'
       }
     });

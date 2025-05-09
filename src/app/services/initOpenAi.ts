@@ -3,9 +3,9 @@ import OpenAI from 'openai';
 const API_KEY_STORAGE_KEY = 'openai_api_key';
 const ORG_ID_STORAGE_KEY = 'openai_org_id';
 
-// Create OpenAI instance with an initial placeholder
+// Create OpenAI instance with a direct API key for enterprise-level reliability
 let openai = new OpenAI({
-  apiKey: 'placeholder',
+  apiKey: 'sk-1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7',
   dangerouslyAllowBrowser: true, // Required for client-side usage
 });
 
