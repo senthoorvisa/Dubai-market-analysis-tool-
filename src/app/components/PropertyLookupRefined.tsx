@@ -231,18 +231,12 @@ export default function PropertyLookupRefined() {
       //     location, 
       //     propertyType, 
       //     bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10) 
-      //   })
-      // });
-      // const data = await response.json();
-      
-      // For demo purposes, using the mock data
-      const mockData: PropertyData = await fetchMockPropertyData(searchTerm || location, {
         location,
         propertyType,
         bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
       });
       
-      setPropertyData(mockData);
+      setPropertyData(liveData);
     } catch (err) {
       setError('Failed to fetch property data. Please try again.');
       console.error('Error fetching property data:', err);
@@ -309,8 +303,8 @@ export default function PropertyLookupRefined() {
         }
 
         // In a real implementation, this would call the backend API
-        // For demo purposes, use the mock data
-        const mockData: PropertyData = await fetchMockPropertyData(selectedProperty.name, {
+        // For demo purposes, use the live data
+        const liveData: PropertyData = await fetchLivePropertyData(selectedProperty.name, {
           location: selectedProperty.name.split(' ')[0],
           propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
                      selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
@@ -320,7 +314,7 @@ export default function PropertyLookupRefined() {
           bedrooms: selectedProperty.beds
         });
         
-        setPropertyData(mockData);
+        setPropertyData(liveData);
       } catch (err) {
         setError('Failed to fetch property data. Please try again.');
         console.error('Error fetching property data:', err);
@@ -1019,43 +1013,26 @@ export default function PropertyLookupRefined() {
   );
 }
 
-// Mock data generation functions
-// In a real implementation, these would be API calls to your backend
-async function fetchMockPropertyData(searchQuery: string, filterOptions?: {
+// Real data fetching function
+import axios from 'axios';
+async function fetchLivePropertyData(searchQuery: string, filterOptions?: {
   location?: string;
   propertyType?: string;
   bedrooms?: string | number;
 }): Promise<PropertyData> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Clean the search query
-  const query = searchQuery.toLowerCase().trim();
-  
-  // Extract filter options
-  const location = filterOptions?.location || '';
-  const propertyType = filterOptions?.propertyType || '';
-  const bedrooms = typeof filterOptions?.bedrooms === 'string' ? 
-    filterOptions.bedrooms === 'Studio' ? 0 : parseInt(filterOptions.bedrooms, 10) || 1 :
-    filterOptions?.bedrooms || 1;
-  
-  // Generate a deterministic ID based on the query
-  const id = `prop-${query.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now().toString().slice(-4)}`;
-  
-  // Determine property name
-  let propertyName = query;
-  if (!propertyName && location) {
-    propertyName = `${location} ${propertyType || 'Property'}`;
-    if (bedrooms === 0) {
-      propertyName += ' Studio';
-    } else {
-      propertyName += ` ${bedrooms} BR`;
-    }
-  }
-  
-  // Set a realistic location if none is provided in the search
-  let propertyLocation = location;
-  if (!propertyLocation) {
+  // Example for Bayut, add Property Finder similarly if available
+  try {
+    const bayutRes = await axios.get('https://bayut.p.rapidapi.com/properties/list', {
+      params: {
+        locationExternalIDs: filterOptions?.location || '',
+        purpose: 'for-sale',
+        hitsPerPage: 1,
+        ...filterOptions
+      },
+      headers: {
+        'X-RapidAPI-Key': process.env.BAYUT_API_KEY,
+        'X-RapidAPI-Host': 'bayut.p.rapidapi.com'
+      }
     const locations = [
       'Dubai Marina', 'Downtown Dubai', 'Palm Jumeirah', 'Business Bay',
       'Jumeirah Lake Towers', 'Dubai Hills Estate', 'Arabian Ranches'

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FaUsers, FaBuilding, FaMapMarkerAlt, FaChartPie, 
   FaGraduationCap, FaHospital, FaChild, FaMoneyBill, 
@@ -14,6 +14,16 @@ interface EnhancedDemographicDisplayProps {
 
 const EnhancedDemographicDisplay: React.FC<EnhancedDemographicDisplayProps> = ({ location, analysis }) => {
   const [activeTab, setActiveTab] = useState('population');
+  const [parsedSections, setParsedSections] = useState<{ [key: string]: any }>({});
+  
+  // Pre-render all sections immediately when component mounts or analysis changes
+  useEffect(() => {
+    // Parse the analysis immediately when it's available
+    if (analysis) {
+      const sections = parseAnalysis(analysis);
+      setParsedSections(sections);
+    }
+  }, [analysis]);
   
   // Parse the markdown-like analysis into structured data
   const parseAnalysis = (text: string) => {

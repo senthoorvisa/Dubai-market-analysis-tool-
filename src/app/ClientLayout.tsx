@@ -43,7 +43,7 @@ export default function ClientLayout({
         <div className="container mx-auto px-4 py-3 flex items-center justify-between max-w-7xl">
           <div className="flex items-center space-x-2">
             <Link href="/" className="text-xl font-bold text-dubai-blue-900 hover:text-tuscany transition-colors">
-              NAAZ
+              JEEVA
             </Link>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
@@ -191,7 +191,7 @@ export default function ClientLayout({
       
       <footer className="bg-white shadow-inner border-t border-gray-200 mt-auto">
         <div className="container mx-auto px-4 py-3 text-center text-sm text-dubai-blue-700 max-w-7xl">
-          &copy; {new Date().getFullYear()} NAAZ - Dubai Property Market Analysis. All rights reserved.
+          &copy; {new Date().getFullYear()} JEEVA - Dubai Property Market Analysis. All rights reserved.
         </div>
       </footer>
     </div>

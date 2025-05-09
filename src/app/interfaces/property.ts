@@ -13,6 +13,8 @@ export interface Property {
   amenities: string[];
   description: string;
   images?: string[];
+  bedrooms?: number;
+  bathrooms?: number;
 }
 
 export interface PropertyLookupResult {

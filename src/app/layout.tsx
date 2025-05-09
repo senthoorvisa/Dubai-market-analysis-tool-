@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NAAZ - Dubai Property Market Analysis",
+  title: "JEEVA - Dubai Property Market Analysis",
   description: "Comprehensive tool for analyzing Dubai real estate market trends, property prices, and investment opportunities.",
 };
 

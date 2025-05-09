@@ -19,6 +19,9 @@ export interface DemographicData {
     age51to65: number;
     above65: number;
   };
+  nationalities?: {
+    [key: string]: number; // Percentage distribution by nationality
+  };
   historicalTrend: {
     year: number;
     population: number;
@@ -47,9 +50,16 @@ export interface InfrastructureAnalysis {
   location: string;
   totalProjects: number;
   projects: InfrastructureProject[];
+  transportation?: {
+    metro: boolean;
+    bus: boolean;
+    tram: boolean;
+    waterTaxi: boolean;
+    walkScore: number;
+  };
   valueImpactAnalysis: {
     shortTerm: number; // Percentage impact in 1 year
     mediumTerm: number; // Percentage impact in 3 years
     longTerm: number; // Percentage impact in 5 years
   };
-} 
+}

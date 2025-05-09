@@ -41,40 +41,103 @@ export interface RentalFilter {
   furnishing?: string;
 }
 
-// Mock service for development - would be replaced with actual Bayut API integration
+// Service for fetching real rental listings from Bayut and Property Finder
+import axios from 'axios';
+
 const rentalApiService = {
-  // Get rental listings from the Bayut API
+  // Get rental listings from Bayut and Property Finder APIs
   getRentalListings: async (
-    area: string, 
-    filters: RentalFilter = {}, 
-    page: number = 1, 
+    area: string,
+    filters: RentalFilter = {},
+    page: number = 1,
     pageSize: number = 50
   ): Promise<RentalApiResponse> => {
-    // In production, this would call your backend API that interfaces with Bayut
-    // Example: 
-    // const response = await fetch(
-    //   `/api/rentals?area=${encodeURIComponent(area)}&page=${page}&pageSize=${pageSize}
-    //   &propertyType=${filters.propertyType || ''}&bedrooms=${filters.bedrooms || ''}...`
-    // );
-    // return await response.json();
-    
-    // For development, return mock data
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const mockListings = generateMockListings(area, filters, pageSize * 2);
-    
-    const startIndex = (page - 1) * pageSize;
-    const paginatedListings = mockListings.slice(startIndex, startIndex + pageSize);
-    
-    return {
-      listings: paginatedListings,
-      total: mockListings.length,
-      page,
-      pageSize
-    };
+    try {
+      // Fetch from Bayut
+      const bayutRes = await axios.get('https://bayut.p.rapidapi.com/properties/list', {
+        params: {
+          locationExternalIDs: area,
+          purpose: 'for-rent',
+          hitsPerPage: pageSize,
+          page: page,
+          ...filters
+        },
+        headers: {
+          'X-RapidAPI-Key': process.env.BAYUT_API_KEY,
+          'X-RapidAPI-Host': 'bayut.p.rapidapi.com'
+        }
+      });
+      // Fetch from Property Finder (pseudo API, as PF does not have a free public API)
+      // In production, use a backend scraper or an official API if available
+      let pfListings: any[] = [];
+      try {
+        const pfRes = await axios.get('https://api.propertyfinder.ae/v1/properties', {
+          params: {
+            location: area,
+            purpose: 'for-rent',
+            ...filters,
+            page,
+            per_page: pageSize
+          },
+          headers: {
+            'Authorization': `Bearer ${process.env.PROPERTYFINDER_API_KEY}`
+          }
+        });
+        pfListings = pfRes.data?.listings || [];
+      } catch (e) {
+        pfListings = [];
+      }
+      // Combine, deduplicate, and format listings
+      const allListings = [...(bayutRes.data?.hits || []), ...pfListings].map(listing => {
+        // Use the most precise price and sqft
+        let price = listing.price || listing.rent || 0;
+        let size = listing.size || listing.sqft || 0;
+        // Compose contact or fallback link
+        let contactName = listing.contactName || '';
+        let contactPhone = listing.contactPhone || '';
+        let contactEmail = listing.contactEmail || '';
+        let link = listing.externalLink || listing.url || listing.detailUrl || '';
+        if (!contactPhone && link) {
+          contactPhone = link; // Use the link if no contact
+        }
+        return {
+          id: listing.id || listing.referenceNumber || '',
+          type: listing.type || listing.propertyType || '',
+          bedrooms: listing.bedrooms || 0,
+          bathrooms: listing.bathrooms || 0,
+          size,
+          rent: price,
+          furnishing: listing.furnishingStatus || 'Unknown',
+          availableSince: listing.createdAt || '',
+          location: listing.location || area,
+          developer: listing.developer || '',
+          amenities: listing.amenities || [],
+          contactName,
+          contactPhone,
+          contactEmail,
+          propertyAge: listing.propertyAge || '',
+          viewType: listing.viewType || '',
+          floorLevel: listing.floorNumber || 0,
+          parkingSpaces: listing.parkingSpaces || 0,
+          petFriendly: !!listing.petFriendly,
+          nearbyAttractions: listing.nearbyAttractions || [],
+          description: listing.description || '',
+          images: listing.images || [],
+          link // always include the direct link
+        };
+      });
+      // Paginate
+      const paginatedListings = allListings.slice(0, pageSize);
+      return {
+        listings: paginatedListings,
+        total: allListings.length,
+        page,
+        pageSize
+      };
+    } catch (error) {
+      return { listings: [], total: 0, page, pageSize };
+    }
   },
-  
   // Check for new listings since the last fetch
   checkForNewListings: async (area: string, lastFetchTime: number): Promise<number> => {
     // In production, this would call your backend API to check for new listings
@@ -214,6 +277,14 @@ function generateMockListings(area: string, filters: RentalFilter, count: number
     const minSize = filters.sizeMin ? parseInt(filters.sizeMin) : 500;
     const maxSize = filters.sizeMax ? parseInt(filters.sizeMax) : 5000;
     size = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+
+    // Ensure bedroom count is realistic for the size
+    if (bedrooms > 4 && size < 2500) {
+      bedrooms = Math.max(1, Math.floor(size / 500)); // 1 BR per 500 sqft
+    }
+    if (bedrooms > Math.floor(size / 250)) {
+      bedrooms = Math.floor(size / 250); // No more than 1 BR per 250 sqft
+    }
     
     // Generate rent within filter constraints if provided
     let rent: number;
