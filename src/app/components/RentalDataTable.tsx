@@ -13,7 +13,6 @@ import rentalApiService, { RentalListing, RentalFilter, RentalApiResponse } from
 import rentalAiService from '../services/rentalAiService';
 import apiKeyService from '../services/apiKeyService';
 import ApiKeyInput from './ApiKeyInput';
-import DataQualityMonitor from './DataQualityMonitor';
 
 // Types
 interface FilterState {
@@ -248,11 +247,21 @@ const RentalDataTable = () => {
         ...prev,
         errorRate: 1,
         averageResponseTime: 0
-      } : null);
+      } : {
+        totalListings: 0,
+        confidence: 0,
+        sources: [],
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'fallback' as const,
+        validationPassed: 0,
+        validationFailed: 1,
+        averageResponseTime: 0,
+        errorRate: 1
+      });
     } finally {
       setLoading(false);
     }
-  }, [selectedArea, filters, currentPage, getApiFilters]);
+  }, [selectedArea, getApiFilters, currentPage, rowsPerPage]);
   
   // Effect to fetch data when area or filters change
   useEffect(() => {
@@ -403,10 +412,13 @@ const RentalDataTable = () => {
   const sortedListings = useMemo(() => {
     const sortableItems = [...listings];
     sortableItems.sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      const aValue = a[sortConfig.key] ?? '';
+      const bValue = b[sortConfig.key] ?? '';
+      
+      if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (aValue > bValue) {
         return sortConfig.direction === 'asc' ? 1 : -1;
       }
       return 0;
@@ -443,13 +455,15 @@ const RentalDataTable = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
     
     // Add headers
-    csvContent += "Type,Bedrooms,Size (sqft),Rent (AED/month),Furnishing,Available Since\n";
+    csvContent += "Type,Property Name,Bedrooms,Size (sqft),Rent (AED/month),Furnishing,Available Since\n";
     
     // Add data rows
     sortedListings.forEach(listing => {
       const bedrooms = listing.bedrooms === 0 ? 'Studio' : listing.bedrooms;
+      const propertyName = listing.propertyName || 'N/A';
       const row = [
         listing.type,
+        propertyName,
         bedrooms,
         listing.size,
         listing.rent,
@@ -471,12 +485,14 @@ const RentalDataTable = () => {
   
   // Copy table data to clipboard
   const copyToClipboard = () => {
-    let tableText = "Type\tBedrooms\tSize (sqft)\tRent (AED/month)\tFurnishing\tAvailable Since\n";
+    let tableText = "Type\tProperty Name\tBedrooms\tSize (sqft)\tRent (AED/month)\tFurnishing\tAvailable Since\n";
     
     sortedListings.forEach(listing => {
       const bedrooms = listing.bedrooms === 0 ? 'Studio' : listing.bedrooms;
+      const propertyName = listing.propertyName || 'N/A';
       const row = [
         listing.type,
+        propertyName,
         bedrooms,
         listing.size,
         listing.rent,
@@ -562,129 +578,12 @@ const RentalDataTable = () => {
 
   // Replace getDeveloperInfo and renderDeveloperInfo functions with new amenities and listing details renderer
   const renderListingDetails = (listing: RentalListing) => {
-    // Format amenities for display
-    const amenitiesList = listing.amenities || [];
-    const bhkConfig = listing?.bhk || (listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BHK`);
-    const furnishingStatus = listing?.furnishing || 'Unknown';
-    
     return (
       <div className="mt-2 p-4 bg-white rounded-lg border border-almond">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Property Details */}
-          <div>
-            <h3 className="text-dubai-blue-900 font-medium mb-3">Property Details</h3>
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center">
-                <FaRuler className="text-tuscany mr-2" />
-                <span className="text-dubai-blue-800">
-                  Size: <span className="font-medium">{listing.size} sqft</span>
-                </span>
-              </div>
-              <div className="flex items-center">
-                <FaHome className="text-tuscany mr-2" />
-                <span className="text-dubai-blue-800">
-                  Configuration: <span className="font-medium">{bhkConfig}</span>
-                </span>
-              </div>
-              <div className="flex items-center">
-                <FaChair className="text-tuscany mr-2" />
-                <span className="text-dubai-blue-800">
-                  Furnishing: <span className="font-medium">{furnishingStatus}</span>
-                </span>
-              </div>
-              {listing.parkingSpaces > 0 && (
-                <div className="flex items-center">
-                  <FaCar className="text-tuscany mr-2" />
-                  <span className="text-dubai-blue-800">
-                    Parking: <span className="font-medium">{listing.parkingSpaces} {listing.parkingSpaces === 1 ? 'space' : 'spaces'}</span>
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center">
-                <FaPaw className="text-tuscany mr-2" />
-                <span className="text-dubai-blue-800">
-                  Pet Friendly: <span className="font-medium">{listing.petFriendly ? 'Yes' : 'No'}</span>
-                </span>
-              </div>
-              <div className="flex items-center">
-                <FaCalendarAlt className="text-tuscany mr-2" />
-                <span className="text-dubai-blue-800">
-                  Available Since: <span className="font-medium">{new Date(listing.availableSince).toLocaleDateString()}</span>
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Contact & Amenities */}
-          <div>
-            <h3 className="text-dubai-blue-900 font-medium mb-3">Contact & Amenities</h3>
-            <div className="flex flex-col space-y-2">
-              {listing.contactName && (
-                <div className="flex items-center">
-                  <FaUser className="text-tuscany mr-2" />
-                  <span className="text-dubai-blue-800">
-                    Contact: <span className="font-medium">{listing.contactName}</span>
-                  </span>
-                </div>
-              )}
-              {listing.contactPhone && (
-                <div className="flex items-center">
-                  <FaPhone className="text-tuscany mr-2" />
-                  <a href={`tel:${listing.contactPhone}`} className="text-dubai-blue-800 hover:text-tuscany">
-                    {listing.contactPhone}
-                  </a>
-                </div>
-              )}
-              {listing.contactEmail && (
-                <div className="flex items-center">
-                  <FaEnvelope className="text-tuscany mr-2" />
-                  <a href={`mailto:${listing.contactEmail}`} className="text-dubai-blue-800 hover:text-tuscany">
-                    {listing.contactEmail}
-                  </a>
-                </div>
-              )}
-              
-              {/* Original listing link */}
-              {listing.link && (
-                <div className="flex items-center mt-2">
-                  <FaGlobe className="text-tuscany mr-2" />
-                  <a 
-                    href={listing.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-tuscany hover:underline font-medium"
-                  >
-                    View Original Listing
-                  </a>
-                </div>
-              )}
-              
-              {/* Amenities */}
-              {amenitiesList.length > 0 && (
-                <div className="mt-3">
-                  <h4 className="text-dubai-blue-800 font-medium mb-2">Amenities</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {amenitiesList.map((amenity, index) => (
-                      <span 
-                        key={index}
-                        className="bg-beige border border-almond rounded-full px-2 py-1 text-xs"
-                      >
-                        {amenity}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="text-dubai-blue-900/70 text-center py-4">
+          <FaInfoCircle className="text-2xl mx-auto mb-2" />
+          <p>Additional property details available upon request</p>
         </div>
-        
-        {listing.description && (
-          <div className="mt-4 border-t border-almond pt-3">
-            <h3 className="text-dubai-blue-900 font-medium mb-2">Description</h3>
-            <p className="text-dubai-blue-800 text-sm">{listing.description}</p>
-          </div>
-        )}
       </div>
     );
   };
@@ -719,12 +618,6 @@ const RentalDataTable = () => {
           </div>
         </div>
       )}
-      
-      {/* Data Quality Monitor */}
-      <DataQualityMonitor 
-        metrics={dataQualityMetrics || undefined}
-        className="mb-6"
-      />
       
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600 flex items-start">
@@ -971,6 +864,9 @@ const RentalDataTable = () => {
               <th onClick={() => requestSort('type')} className="cursor-pointer">
                 Type {getSortIndicator('type')}
               </th>
+              <th onClick={() => requestSort('propertyName' as keyof RentalListing)} className="cursor-pointer">
+                Property Name {getSortIndicator('propertyName' as keyof RentalListing)}
+              </th>
               <th onClick={() => requestSort('bedrooms')} className="cursor-pointer">
                 Bedrooms {getSortIndicator('bedrooms')}
               </th>
@@ -991,7 +887,7 @@ const RentalDataTable = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-8">
+                <td colSpan={7} className="text-center py-8">
                   <div className="inline-flex items-center">
                     <div className="animate-spin h-6 w-6 border-t-2 border-b-2 border-tuscany rounded-full mr-2"></div>
                     <span>Loading properties...</span>
@@ -1012,6 +908,9 @@ const RentalDataTable = () => {
                          <FaBuilding className="text-tuscany" />}
                       </span>
                       {listing.type}
+                    </td>
+                    <td className="font-medium text-dubai-blue-900">
+                      {listing.propertyName || 'Property Name Not Available'}
                     </td>
                     <td>{listing.bedrooms === 0 ? 'Studio' : listing.bedrooms}</td>
                     <td>{listing.size}</td>
@@ -1043,7 +942,7 @@ const RentalDataTable = () => {
                   </tr>
                   {expandedListings[listing.id] && (
                     <tr className="bg-beige">
-                      <td colSpan={6} className="px-4 py-3">
+                      <td colSpan={7} className="px-4 py-3">
                         {renderListingDetails(listing)}
                       </td>
                     </tr>
@@ -1052,7 +951,7 @@ const RentalDataTable = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-dubai-blue-900/70">
+                <td colSpan={7} className="text-center py-8 text-dubai-blue-900/70">
                   <FaInfoCircle className="text-3xl mx-auto mb-2" />
                   <p>No rental listings found matching your filters.</p>
                   <button 
