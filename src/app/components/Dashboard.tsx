@@ -35,7 +35,7 @@ const Dashboard: React.FC = () => {
         demographicAnalysis.setApiKey(apiKey);
       }
     }
-  }, []);
+  }, [demographicAnalysis]);
   
   // Handle quick search submission
   const handleQuickSearch = () => {
@@ -121,7 +121,6 @@ const Dashboard: React.FC = () => {
           {showApiKeyInput ? (
             <ApiKeyInput 
               onApiKeySet={handleApiKeySet}
-              showInitialMessage={false}
             />
           ) : (
             <div>
