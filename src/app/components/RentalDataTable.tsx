@@ -266,14 +266,30 @@ const RentalDataTable = () => {
   const handleAreaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
-  
+
   const handleAreaSelect = (area: string) => {
     setSelectedArea(area);
-    setSearchQuery("");
+    setSearchQuery(area); // Keep the search query to show selected area
     // Reset pagination when area changes
     setCurrentPage(1);
     // Trigger data fetch for the new area
     fetchRentalListings();
+  };
+
+  // Add function to handle manual search (Enter key or search button)
+  const handleManualSearch = () => {
+    if (searchQuery.trim()) {
+      setSelectedArea(searchQuery.trim());
+      setCurrentPage(1);
+      fetchRentalListings();
+    }
+  };
+
+  // Handle Enter key press in search input
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleManualSearch();
+    }
   };
   
   // Filter out areas based on search query
@@ -780,19 +796,28 @@ const RentalDataTable = () => {
             <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
               Area
             </label>
-            <div className="relative">
+            <div className="relative flex">
               <input
                 type="text"
-                className="bg-white border border-almond rounded-md pl-10 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                className="bg-white border border-almond rounded-l-md pl-10 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
                 value={searchQuery}
                 onChange={handleAreaChange}
+                onKeyDown={handleSearchKeyPress}
                 placeholder="Search areas..."
               />
               <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
               
+              <button
+                onClick={handleManualSearch}
+                className="bg-tuscany text-white px-3 py-2 rounded-r-md hover:bg-tuscany/80 transition-colors border border-tuscany"
+                type="button"
+              >
+                Search
+              </button>
+              
               {/* Autocomplete dropdown */}
-              {searchQuery && (
-                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-y-auto border border-almond">
+              {searchQuery && !popularAreas.includes(searchQuery) && (
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-y-auto border border-almond top-full left-0">
                   {popularAreas
                     .filter(area => area.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((area, index) => (
