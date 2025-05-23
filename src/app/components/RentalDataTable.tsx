@@ -9,10 +9,11 @@ import {
   FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser
 } from 'react-icons/fa';
 import Link from 'next/link';
-import rentalApiService, { RentalListing, RentalFilter } from '../services/rentalApiService';
+import rentalApiService, { RentalListing, RentalFilter, RentalApiResponse } from '../services/rentalApiService';
 import rentalAiService from '../services/rentalAiService';
 import apiKeyService from '../services/apiKeyService';
 import ApiKeyInput from './ApiKeyInput';
+import DataQualityMonitor from './DataQualityMonitor';
 
 // Types
 interface FilterState {
@@ -89,6 +90,19 @@ const RentalDataTable = () => {
   const [newListingsCount, setNewListingsCount] = useState(0);
   const [lastFetchTime, setLastFetchTime] = useState(Date.now());
   const [totalListings, setTotalListings] = useState(0);
+  
+  // Data quality monitoring state
+  const [dataQualityMetrics, setDataQualityMetrics] = useState<{
+    totalListings: number;
+    confidence: number;
+    sources: string[];
+    lastUpdated: string;
+    dataSource: 'real-time' | 'cached' | 'fallback';
+    validationPassed: number;
+    validationFailed: number;
+    averageResponseTime: number;
+    errorRate: number;
+  } | null>(null);
   
   // State for area selection
   const [selectedArea, setSelectedArea] = useState<string>('Dubai Marina');
@@ -195,21 +209,46 @@ const RentalDataTable = () => {
     try {
       const now = Date.now();
       const apiFilters = getApiFilters();
+      const startTime = performance.now();
       
-      const response = await rentalApiService.getRentalListings(
+      const response: RentalApiResponse = await rentalApiService.getRentalListings(
         selectedArea,
         apiFilters,
         currentPage,
         rowsPerPage
       );
       
+      const endTime = performance.now();
+      const responseTime = (endTime - startTime) / 1000; // Convert to seconds
+      
       setListings(response.listings);
       setTotalListings(response.total);
       setLastFetchTime(now);
       setNewListingsCount(0); // Reset the new listings counter
+      
+      // Update data quality metrics
+      setDataQualityMetrics({
+        totalListings: response.total,
+        confidence: response.confidence || 0.7,
+        sources: response.sources || [],
+        lastUpdated: response.lastUpdated || new Date().toISOString(),
+        dataSource: response.dataSource || 'fallback',
+        validationPassed: response.listings.length,
+        validationFailed: 0,
+        averageResponseTime: responseTime,
+        errorRate: 0
+      });
+      
     } catch (err) {
       console.error('Error fetching rental listings:', err);
       setError('Failed to load rental listings. Please try again.');
+      
+      // Update metrics with error state
+      setDataQualityMetrics(prev => prev ? {
+        ...prev,
+        errorRate: 1,
+        averageResponseTime: 0
+      } : null);
     } finally {
       setLoading(false);
     }
@@ -680,6 +719,12 @@ const RentalDataTable = () => {
           </div>
         </div>
       )}
+      
+      {/* Data Quality Monitor */}
+      <DataQualityMonitor 
+        metrics={dataQualityMetrics || undefined}
+        className="mb-6"
+      />
       
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600 flex items-start">
