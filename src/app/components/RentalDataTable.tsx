@@ -6,7 +6,7 @@ import {
   FaRobot, FaChartLine, FaInfoCircle, FaSearch, FaMapMarkerAlt, 
   FaExclamationTriangle, FaHome, FaBuilding, FaEye, FaLayerGroup, 
   FaCar, FaPhone, FaEnvelope, FaPaw, FaLocationArrow,
-  FaCalendarAlt, FaChair, FaRuler, FaGlobe
+  FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser
 } from 'react-icons/fa';
 import Link from 'next/link';
 import rentalApiService, { RentalListing, RentalFilter } from '../services/rentalApiService';
@@ -71,6 +71,14 @@ const DEVELOPERS: Record<string, DeveloperInfo> = {
     phone: "+971 4 000 0000",
     email: "info@naaz-properties.com"
   }
+};
+
+// Add the formatAnalysis function at the top of the file
+const formatAnalysis = (analysisText: string): React.ReactNode => {
+  // Simple implementation to break text into paragraphs
+  return analysisText.split('\n\n').map((paragraph, idx) => (
+    <p key={idx} className="mb-4">{paragraph}</p>
+  ));
 };
 
 const RentalDataTable = () => {
@@ -468,7 +476,7 @@ const RentalDataTable = () => {
     setAnalysisError(null);
     
     try {
-      const apiKey = apiKeyService.getApiKey();
+      const apiKey = apiKeyService.getStoredApiKey();
       if (!apiKey) {
         throw new Error('API key is not configured');
       }
@@ -497,58 +505,131 @@ const RentalDataTable = () => {
     }
   };
 
-  // Helper to get developer info
-  const getDeveloperInfo = (developerName: string): DeveloperInfo => {
-    const normalizedName = developerName?.trim();
-    return DEVELOPERS[normalizedName] || DEVELOPERS["Default Developer"];
-  };
-
-  // Add this near the renderListingTable function (before return statement)
-  const renderDeveloperInfo = (listing: RentalListing) => {
-    const developer = getDeveloperInfo(listing.developer || "Default Developer");
+  // Replace getDeveloperInfo and renderDeveloperInfo functions with new amenities and listing details renderer
+  const renderListingDetails = (listing: RentalListing) => {
+    // Format amenities for display
+    const amenitiesList = listing.amenities || [];
+    const bhkConfig = listing?.bhk || (listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} BHK`);
+    const furnishingStatus = listing?.furnishing || 'Unknown';
     
     return (
-      <div className="mt-2 p-3 bg-beige rounded-lg border border-almond">
-        <div className="flex flex-col space-y-2">
-          <div className="flex items-center">
-            <FaBuilding className="text-tuscany mr-2" />
-            <Link 
-              href={`/developer-analysis?name=${encodeURIComponent(developer.name)}`}
-              className="text-dubai-blue-800 hover:text-tuscany font-medium"
-            >
-              {developer.name}
-            </Link>
+      <div className="mt-2 p-4 bg-white rounded-lg border border-almond">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Property Details */}
+          <div>
+            <h3 className="text-dubai-blue-900 font-medium mb-3">Property Details</h3>
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center">
+                <FaRuler className="text-tuscany mr-2" />
+                <span className="text-dubai-blue-800">
+                  Size: <span className="font-medium">{listing.size} sqft</span>
+                </span>
+              </div>
+              <div className="flex items-center">
+                <FaHome className="text-tuscany mr-2" />
+                <span className="text-dubai-blue-800">
+                  Configuration: <span className="font-medium">{bhkConfig}</span>
+                </span>
+              </div>
+              <div className="flex items-center">
+                <FaChair className="text-tuscany mr-2" />
+                <span className="text-dubai-blue-800">
+                  Furnishing: <span className="font-medium">{furnishingStatus}</span>
+                </span>
+              </div>
+              {listing.parkingSpaces > 0 && (
+                <div className="flex items-center">
+                  <FaCar className="text-tuscany mr-2" />
+                  <span className="text-dubai-blue-800">
+                    Parking: <span className="font-medium">{listing.parkingSpaces} {listing.parkingSpaces === 1 ? 'space' : 'spaces'}</span>
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center">
+                <FaPaw className="text-tuscany mr-2" />
+                <span className="text-dubai-blue-800">
+                  Pet Friendly: <span className="font-medium">{listing.petFriendly ? 'Yes' : 'No'}</span>
+                </span>
+              </div>
+              <div className="flex items-center">
+                <FaCalendarAlt className="text-tuscany mr-2" />
+                <span className="text-dubai-blue-800">
+                  Available Since: <span className="font-medium">{new Date(listing.availableSince).toLocaleDateString()}</span>
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center">
-            <FaGlobe className="text-tuscany mr-2" />
-            <a 
-              href={developer.website} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-dubai-blue-700 hover:text-tuscany"
-            >
-              Official Website
-            </a>
-          </div>
-          <div className="flex items-center">
-            <FaPhone className="text-tuscany mr-2" />
-            <a 
-              href={`tel:${developer.phone}`}
-              className="text-dubai-blue-700 hover:text-tuscany"
-            >
-              {developer.phone}
-            </a>
-          </div>
-          <div className="flex items-center">
-            <FaEnvelope className="text-tuscany mr-2" />
-            <a 
-              href={`mailto:${developer.email}`}
-              className="text-dubai-blue-700 hover:text-tuscany"
-            >
-              {developer.email}
-            </a>
+          
+          {/* Contact & Amenities */}
+          <div>
+            <h3 className="text-dubai-blue-900 font-medium mb-3">Contact & Amenities</h3>
+            <div className="flex flex-col space-y-2">
+              {listing.contactName && (
+                <div className="flex items-center">
+                  <FaUser className="text-tuscany mr-2" />
+                  <span className="text-dubai-blue-800">
+                    Contact: <span className="font-medium">{listing.contactName}</span>
+                  </span>
+                </div>
+              )}
+              {listing.contactPhone && (
+                <div className="flex items-center">
+                  <FaPhone className="text-tuscany mr-2" />
+                  <a href={`tel:${listing.contactPhone}`} className="text-dubai-blue-800 hover:text-tuscany">
+                    {listing.contactPhone}
+                  </a>
+                </div>
+              )}
+              {listing.contactEmail && (
+                <div className="flex items-center">
+                  <FaEnvelope className="text-tuscany mr-2" />
+                  <a href={`mailto:${listing.contactEmail}`} className="text-dubai-blue-800 hover:text-tuscany">
+                    {listing.contactEmail}
+                  </a>
+                </div>
+              )}
+              
+              {/* Original listing link */}
+              {listing.link && (
+                <div className="flex items-center mt-2">
+                  <FaGlobe className="text-tuscany mr-2" />
+                  <a 
+                    href={listing.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-tuscany hover:underline font-medium"
+                  >
+                    View Original Listing
+                  </a>
+                </div>
+              )}
+              
+              {/* Amenities */}
+              {amenitiesList.length > 0 && (
+                <div className="mt-3">
+                  <h4 className="text-dubai-blue-800 font-medium mb-2">Amenities</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {amenitiesList.map((amenity, index) => (
+                      <span 
+                        key={index}
+                        className="bg-beige border border-almond rounded-full px-2 py-1 text-xs"
+                      >
+                        {amenity}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        
+        {listing.description && (
+          <div className="mt-4 border-t border-almond pt-3">
+            <h3 className="text-dubai-blue-900 font-medium mb-2">Description</h3>
+            <p className="text-dubai-blue-800 text-sm">{listing.description}</p>
+          </div>
+        )}
       </div>
     );
   };
@@ -893,7 +974,7 @@ const RentalDataTable = () => {
                   {expandedListings[listing.id] && (
                     <tr className="bg-beige">
                       <td colSpan={6} className="px-4 py-3">
-                        {renderDeveloperInfo(listing)}
+                        {renderListingDetails(listing)}
                       </td>
                     </tr>
                   )}
