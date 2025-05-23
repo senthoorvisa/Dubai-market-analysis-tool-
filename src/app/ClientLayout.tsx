@@ -13,29 +13,53 @@ export default function ClientLayout({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState('');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // Set client flag to true after hydration
+    setIsClient(true);
+    
     // Update current path when component mounts or URL changes
-    setCurrentPath(window.location.pathname);
-
-    // Add event listener for route changes
-    const handleRouteChange = () => {
+    if (typeof window !== 'undefined') {
       setCurrentPath(window.location.pathname);
-    };
 
-    window.addEventListener('popstate', handleRouteChange);
-    
-    // Initialize the OpenAI API key
-    apiKeyService.initializeWithDefaultKey();
-    
-    return () => {
-      window.removeEventListener('popstate', handleRouteChange);
-    };
+      // Add event listener for route changes
+      const handleRouteChange = () => {
+        setCurrentPath(window.location.pathname);
+      };
+
+      window.addEventListener('popstate', handleRouteChange);
+      
+      // Initialize the OpenAI API key
+      try {
+        apiKeyService.initializeWithDefaultKey();
+      } catch (error) {
+        console.error('Failed to initialize API key:', error);
+      }
+      
+      return () => {
+        window.removeEventListener('popstate', handleRouteChange);
+      };
+    }
   }, []);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
+
+  // Don't render anything until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="flex flex-col min-h-screen bg-anti-flash-white">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tuscany mx-auto mb-4"></div>
+            <p className="text-dubai-blue-700">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-anti-flash-white">

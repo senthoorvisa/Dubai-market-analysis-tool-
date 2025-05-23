@@ -31,19 +31,6 @@ export function updateApiKey(apiKey: string, orgId?: string): void {
   }
 }
 
-// Initialize with stored key if available
-if (typeof window !== 'undefined') {
-  try {
-    // Direct localStorage access to avoid circular dependency
-    const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-    const storedOrgId = localStorage.getItem(ORG_ID_STORAGE_KEY);
-    
-    if (storedKey) {
-      updateApiKey(storedKey, storedOrgId || undefined);
-    }
-  } catch (error) {
-    console.error('Failed to initialize OpenAI with stored key:', error);
-  }
-}
+// Initialize with stored key if available (only on client-side)export function initializeFromStorage() {  if (typeof window !== 'undefined') {    try {      // Direct localStorage access to avoid circular dependency      const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);      const storedOrgId = localStorage.getItem(ORG_ID_STORAGE_KEY);            if (storedKey) {        updateApiKey(storedKey, storedOrgId || undefined);      }    } catch (error) {      console.error('Failed to initialize OpenAI with stored key:', error);    }  }}
 
 export default openai; 
