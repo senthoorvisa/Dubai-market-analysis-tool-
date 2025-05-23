@@ -42,19 +42,12 @@ export interface RentalFilter {
   furnishing?: string;
 }
 
-// Service for fetching real rental listings from multiple sources
+// Service for fetching real rental listings from Dubai real estate websites
 import axios from 'axios';
 
 // API retry configuration
 const API_RETRY_COUNT = 3;
-const API_RETRY_DELAY = 1000; // ms
-
-// Define API endpoints for data fetching
-const BAYUT_API_ENDPOINT = 'https://bayut.p.rapidapi.com/properties/list';
-const PROPERTYFINDER_API_ENDPOINT = 'https://api.propertyfinder.ae/v1/properties';
-const DUBIZZLE_API_ENDPOINT = 'https://uae.dubizzle.com/api/v1/properties';
-// Add Property Monitor API for verified price data
-const PROPERTYMONITOR_API_ENDPOINT = 'https://api.propertymonitor.ae/properties/rent';
+const API_RETRY_DELAY = 2000; // ms
 
 /**
  * Retry function for API calls
@@ -70,282 +63,432 @@ async function withRetry<T>(fn: () => Promise<T>, retries = API_RETRY_COUNT, del
     
     console.log(`API call failed, retrying... (${API_RETRY_COUNT - retries + 1}/${API_RETRY_COUNT})`);
     await new Promise(resolve => setTimeout(resolve, delay));
-    return withRetry(fn, retries - 1, delay);
+    return withRetry(fn, retries - 1, delay * 1.5); // Exponential backoff
   }
 }
 
 /**
- * Function to verify and correct price data using Property Monitor API
- * @param area Area name
- * @param propertyType Property type
- * @param rent Initial rent value
- * @param size Property size in sqft
+ * Real-time web scraping function for Bayut.com
  */
-async function verifyRentPrice(area: string, propertyType: string, rent: number, size: number): Promise<number> {
+async function scrapeBayutListings(area: string, filters: RentalFilter = {}): Promise<RentalListing[]> {
   try {
-    // Call Property Monitor API to get verified rental data
-    const response = await axios.get(PROPERTYMONITOR_API_ENDPOINT, {
-      params: {
-        area,
-        property_type: propertyType,
-        size_sqft: size
-      },
+    const searchParams = new URLSearchParams();
+    searchParams.append('purpose', 'for-rent');
+    searchParams.append('location', area);
+    
+    if (filters.propertyType) searchParams.append('categoryExternalID', getPropertyTypeId(filters.propertyType));
+    if (filters.bedrooms) searchParams.append('roomsMin', filters.bedrooms);
+    if (filters.rentMin) searchParams.append('priceMin', filters.rentMin);
+    if (filters.rentMax) searchParams.append('priceMax', filters.rentMax);
+
+    // Use a CORS proxy to bypass CORS restrictions
+    const proxyUrl = 'https://api.allorigins.win/get?url=';
+    const targetUrl = encodeURIComponent(`https://www.bayut.com/api/properties?${searchParams.toString()}`);
+    
+    const response = await axios.get(`${proxyUrl}${targetUrl}`, {
       headers: {
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PROPERTYMONITOR_API_KEY || 'pm_api_key'}`
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
-    
-    if (response.data && response.data.verified_price) {
-      // If the difference is significant (more than 15%), use the verified price
-      const verifiedPrice = response.data.verified_price;
-      const priceDiff = Math.abs((rent - verifiedPrice) / verifiedPrice);
-      
-      if (priceDiff > 0.15) {
-        console.log(`Price corrected for ${propertyType} in ${area}: ${rent} -> ${verifiedPrice} AED`);
-        return verifiedPrice;
+
+    const data = JSON.parse(response.data.contents);
+    const listings: RentalListing[] = [];
+
+    if (data.hits && Array.isArray(data.hits)) {
+      for (const hit of data.hits) {
+        // Determine furnishing status
+        let furnishingStatus: 'Furnished' | 'Unfurnished' | 'Partially Furnished' = 'Unfurnished';
+        if (hit.furnishingStatus) {
+          const status = hit.furnishingStatus.toLowerCase();
+          if (status.includes('furnished') && !status.includes('unfurnished')) {
+            furnishingStatus = status.includes('partially') ? 'Partially Furnished' : 'Furnished';
+          } else if (status.includes('unfurnished')) {
+            furnishingStatus = 'Unfurnished';
+          }
+        }
+
+        const listing: RentalListing = {
+          id: hit.id || `bayut-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: hit.category?.[0]?.name || 'Apartment',
+          bedrooms: parseInt(hit.rooms) || 0,
+          bathrooms: parseInt(hit.baths) || 0,
+          size: parseInt(hit.area) || 0,
+          rent: parseInt(hit.price) || 0,
+          furnishing: furnishingStatus,
+          availableSince: hit.dateInsert || new Date().toISOString(),
+          location: hit.location?.[0]?.name || area,
+          amenities: hit.amenities || [],
+          contactName: hit.contactName || hit.agency?.name || '',
+          contactPhone: hit.phoneNumber?.mobile || '',
+          contactEmail: hit.contactEmail || '',
+          propertyAge: hit.completionStatus || 'Unknown',
+          viewType: hit.keywords?.join(', ') || '',
+          floorLevel: parseInt(hit.floor) || 0,
+          parkingSpaces: parseInt(hit.parking) || 0,
+          petFriendly: hit.petFriendly === 'yes',
+          nearbyAttractions: hit.nearbyPlaces || [],
+          description: hit.description || `${hit.category?.[0]?.name || 'Property'} for rent in ${area}`,
+          images: hit.photos?.map((photo: any) => photo.url) || [],
+          link: `https://www.bayut.com${hit.path}`,
+          bhk: hit.rooms === '0' ? 'Studio' : `${hit.rooms} BHK`
+        };
+        listings.push(listing);
       }
     }
-    
-    return rent; // Return original if verification failed or difference is acceptable
+
+    console.log(`Successfully scraped ${listings.length} listings from Bayut`);
+    return listings;
   } catch (error) {
-    console.warn('Price verification failed, using original price:', error);
-    return rent;
+    console.error('Bayut scraping failed:', error);
+    return [];
   }
 }
 
 /**
- * Function to normalize and enhance property data
+ * Real-time web scraping function for PropertyFinder.ae
  */
-function normalizeListingData(rawListing: any, source: string): Partial<RentalListing> {
-  // Extract basic property details
-  let type = rawListing.type || rawListing.propertyType || 'Residential';
-  let bedrooms = rawListing.bedrooms || 0;
-  let price = rawListing.price || rawListing.rent || 0;
-  let size = rawListing.size || rawListing.sqft || 0;
-  let location = rawListing.location?.[0]?.name || rawListing.location || '';
-  let amenities = rawListing.amenities || [];
+async function scrapePropertyFinderListings(area: string, filters: RentalFilter = {}): Promise<RentalListing[]> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.append('c', '2'); // For rent
+    searchParams.append('l', getLocationId(area));
+    
+    if (filters.propertyType) searchParams.append('t', getPropertyFinderTypeId(filters.propertyType));
+    if (filters.bedrooms) searchParams.append('rms', filters.bedrooms);
+    if (filters.rentMin) searchParams.append('pf', filters.rentMin);
+    if (filters.rentMax) searchParams.append('pt', filters.rentMax);
+
+    const proxyUrl = 'https://api.allorigins.win/get?url=';
+    const targetUrl = encodeURIComponent(`https://www.propertyfinder.ae/en/search?${searchParams.toString()}`);
+    
+    const response = await axios.get(`${proxyUrl}${targetUrl}`, {
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    // Parse HTML content to extract listing data
+    const htmlContent = response.data.contents;
+    const listings: RentalListing[] = await parsePropertyFinderHTML(htmlContent, area);
+    
+    console.log(`Successfully scraped ${listings.length} listings from PropertyFinder`);
+    return listings;
+  } catch (error) {
+    console.error('PropertyFinder scraping failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Real-time web scraping function for Dubizzle.com
+ */
+async function scrapeDubizzleListings(area: string, filters: RentalFilter = {}): Promise<RentalListing[]> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.append('keywords', `${area} rent`);
+    searchParams.append('is_basic_search_widget', '0');
+    searchParams.append('is_search', '1');
+    
+    if (filters.propertyType) searchParams.append('category', 'apartments-for-rent');
+    if (filters.bedrooms) searchParams.append('bedrooms', filters.bedrooms);
+
+    const proxyUrl = 'https://api.allorigins.win/get?url=';
+    const targetUrl = encodeURIComponent(`https://dubai.dubizzle.com/property-for-rent/residential/?${searchParams.toString()}`);
+    
+    const response = await axios.get(`${proxyUrl}${targetUrl}`, {
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    const htmlContent = response.data.contents;
+    const listings: RentalListing[] = await parseDubizzleHTML(htmlContent, area);
+    
+    console.log(`Successfully scraped ${listings.length} listings from Dubizzle`);
+    return listings;
+  } catch (error) {
+    console.error('Dubizzle scraping failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Parse PropertyFinder HTML content
+ */
+async function parsePropertyFinderHTML(htmlContent: string, area: string): Promise<RentalListing[]> {
+  const listings: RentalListing[] = [];
   
-  // Extract BHK configuration
-  let bhk = bedrooms === 0 ? 'Studio' : `${bedrooms} BHK`;
-  
-  // Extract contact information
-  let contactName = rawListing.contactName || rawListing.agent?.name || '';
-  let contactPhone = rawListing.contactPhone || rawListing.agent?.phone || '';
-  let contactEmail = rawListing.contactEmail || rawListing.agent?.email || '';
-  
-  // Extract link to original listing
-  let link = rawListing.externalLink || rawListing.url || rawListing.detailUrl || '';
-  
-  // Ensure we have some contact method
-  if (!contactPhone && link) {
-    contactPhone = link;
+  try {
+    // Use regex patterns to extract listing data from HTML
+    const listingPattern = /<div[^>]*class="[^"]*card-list[^"]*"[^>]*>(.*?)<\/div>/g;
+    const matches = htmlContent.match(listingPattern);
+    
+    if (matches) {
+      for (const match of matches.slice(0, 20)) { // Limit to 20 listings
+        const priceMatch = match.match(/AED\s*([\d,]+)/);
+        const bedroomsMatch = match.match(/(\d+)\s*bed/i);
+        const sizeMatch = match.match(/([\d,]+)\s*sq\.?\s*ft/i);
+        const linkMatch = match.match(/href="([^"]+)"/);
+        
+        if (priceMatch) {
+          const listing: RentalListing = {
+            id: `pf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'Apartment',
+            bedrooms: bedroomsMatch ? parseInt(bedroomsMatch[1]) : 0,
+            bathrooms: bedroomsMatch ? parseInt(bedroomsMatch[1]) : 1,
+            size: sizeMatch ? parseInt(sizeMatch[1].replace(/,/g, '')) : 0,
+            rent: parseInt(priceMatch[1].replace(/,/g, '')),
+            furnishing: 'Unfurnished',
+            availableSince: new Date().toISOString(),
+            location: area,
+            amenities: [],
+            contactName: 'PropertyFinder Agent',
+            contactPhone: '',
+            contactEmail: '',
+            propertyAge: 'Unknown',
+            viewType: '',
+            floorLevel: 0,
+            parkingSpaces: 0,
+            petFriendly: false,
+            nearbyAttractions: [],
+            description: `Property for rent in ${area}`,
+            images: [],
+            link: linkMatch ? `https://www.propertyfinder.ae${linkMatch[1]}` : '',
+            bhk: bedroomsMatch ? `${bedroomsMatch[1]} BHK` : 'Studio'
+          };
+          listings.push(listing);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error parsing PropertyFinder HTML:', error);
   }
   
-  return {
-    type,
-    bedrooms,
-    bathrooms: rawListing.bathrooms || 0,
-    size,
-    rent: price,
-    furnishing: rawListing.furnishingStatus || 'Unknown',
-    availableSince: rawListing.createdAt || new Date().toISOString(),
-    location,
-    amenities,
-    contactName,
-    contactPhone,
-    contactEmail,
-    propertyAge: rawListing.propertyAge || 'Unknown',
-    viewType: rawListing.viewType || '',
-    floorLevel: rawListing.floorNumber || 0,
-    parkingSpaces: rawListing.parkingSpaces || 0,
-    petFriendly: !!rawListing.petFriendly,
-    nearbyAttractions: rawListing.nearbyAttractions || [],
-    description: rawListing.description || `Property for rent in ${location}`,
-    images: rawListing.images || [],
-    link,
-    bhk
+  return listings;
+}
+
+/**
+ * Parse Dubizzle HTML content
+ */
+async function parseDubizzleHTML(htmlContent: string, area: string): Promise<RentalListing[]> {
+  const listings: RentalListing[] = [];
+  
+  try {
+    // Use regex patterns to extract listing data from HTML
+    const listingPattern = /<div[^>]*class="[^"]*listing[^"]*"[^>]*>(.*?)<\/div>/g;
+    const matches = htmlContent.match(listingPattern);
+    
+    if (matches) {
+      for (const match of matches.slice(0, 15)) { // Limit to 15 listings
+        const priceMatch = match.match(/AED\s*([\d,]+)/);
+        const bedroomsMatch = match.match(/(\d+)\s*bedroom/i);
+        const linkMatch = match.match(/href="([^"]+)"/);
+        
+        if (priceMatch) {
+          const listing: RentalListing = {
+            id: `dubizzle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'Apartment',
+            bedrooms: bedroomsMatch ? parseInt(bedroomsMatch[1]) : 0,
+            bathrooms: bedroomsMatch ? parseInt(bedroomsMatch[1]) : 1,
+            size: 0, // Will be extracted from individual listing page
+            rent: parseInt(priceMatch[1].replace(/,/g, '')),
+            furnishing: 'Unfurnished',
+            availableSince: new Date().toISOString(),
+            location: area,
+            amenities: [],
+            contactName: 'Dubizzle Agent',
+            contactPhone: '',
+            contactEmail: '',
+            propertyAge: 'Unknown',
+            viewType: '',
+            floorLevel: 0,
+            parkingSpaces: 0,
+            petFriendly: false,
+            nearbyAttractions: [],
+            description: `Property for rent in ${area}`,
+            images: [],
+            link: linkMatch ? `https://dubai.dubizzle.com${linkMatch[1]}` : '',
+            bhk: bedroomsMatch ? `${bedroomsMatch[1]} BHK` : 'Studio'
+          };
+          listings.push(listing);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error parsing Dubizzle HTML:', error);
+  }
+  
+  return listings;
+}
+
+/**
+ * Helper functions for mapping filters to website-specific IDs
+ */
+function getPropertyTypeId(type: string): string {
+  const typeMap: { [key: string]: string } = {
+    'Apartment': '1',
+    'Villa': '2',
+    'Townhouse': '3',
+    'Penthouse': '4',
+    'Studio': '5'
   };
+  return typeMap[type] || '1';
+}
+
+function getPropertyFinderTypeId(type: string): string {
+  const typeMap: { [key: string]: string } = {
+    'Apartment': 'ap',
+    'Villa': 'vi',
+    'Townhouse': 'th',
+    'Penthouse': 'ph',
+    'Studio': 'st'
+  };
+  return typeMap[type] || 'ap';
+}
+
+function getLocationId(area: string): string {
+  const locationMap: { [key: string]: string } = {
+    'Dubai Marina': '2',
+    'Downtown Dubai': '1',
+    'Palm Jumeirah': '3',
+    'Business Bay': '4',
+    'Jumeirah Lake Towers': '5'
+  };
+  return locationMap[area] || '2';
+}
+
+/**
+ * Cross-verify prices across multiple sources
+ */
+async function crossVerifyPrice(listing: RentalListing, allListings: RentalListing[]): Promise<number> {
+  // Find similar properties (same type, similar size, same area)
+  const similarListings = allListings.filter(l => 
+    l.type === listing.type &&
+    l.location === listing.location &&
+    Math.abs(l.size - listing.size) <= 200 && // Within 200 sqft
+    l.id !== listing.id
+  );
+
+  if (similarListings.length >= 2) {
+    const prices = similarListings.map(l => l.rent);
+    const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+    
+    // If current price is more than 30% different from average, use the average
+    const priceDiff = Math.abs((listing.rent - avgPrice) / avgPrice);
+    if (priceDiff > 0.3) {
+      console.log(`Price adjusted for ${listing.type} in ${listing.location}: ${listing.rent} -> ${Math.round(avgPrice)} AED`);
+      return Math.round(avgPrice);
+    }
+  }
+
+  return listing.rent;
 }
 
 const rentalApiService = {
-  // Get rental listings from multiple sources
+  // Get rental listings from multiple real estate websites
   getRentalListings: async (
     area: string,
     filters: RentalFilter = {},
     page: number = 1,
     pageSize: number = 50
   ): Promise<RentalApiResponse> => {
-    // Use the retry mechanism for robust API calls
     return await withRetry(async () => {
-      // Create a collection for all listings
-      let allListings: Partial<RentalListing>[] = [];
+      console.log(`Fetching real-time rental data for ${area}...`);
       
-      // Fetch from Bayut
-      try {
-        const bayutRes = await axios.get(BAYUT_API_ENDPOINT, {
-          params: {
-            locationExternalIDs: area,
-            purpose: 'for-rent',
-            hitsPerPage: pageSize,
-            page: page,
-            ...filters
-          },
-          headers: {
-            'X-RapidAPI-Key': process.env.NEXT_PUBLIC_BAYUT_API_KEY || '1a2b3c4d5emshf6g7h8i9j0k1l2mp1n3o4pjsnq5r6s7t8u9v0',
-            'X-RapidAPI-Host': 'bayut.p.rapidapi.com'
-          }
-        });
-        
-        if (bayutRes.data?.hits) {
-          const bayutListings = bayutRes.data.hits.map((listing: any) => {
-            return normalizeListingData(listing, 'bayut');
-          });
-          
-          allListings = [...allListings, ...bayutListings];
-          console.log(`Successfully fetched ${bayutListings.length} Bayut rental listings`);
-        }
-      } catch (error) {
-        console.warn('Bayut API fetch failed:', error);
+      // Fetch from multiple sources in parallel
+      const [bayutListings, pfListings, dubizzleListings] = await Promise.allSettled([
+        scrapeBayutListings(area, filters),
+        scrapePropertyFinderListings(area, filters),
+        scrapeDubizzleListings(area, filters)
+      ]);
+
+      // Collect successful results
+      let allListings: RentalListing[] = [];
+      
+      if (bayutListings.status === 'fulfilled') {
+        allListings = [...allListings, ...bayutListings.value];
       }
       
-      // Fetch from Property Finder
-      try {
-        const pfRes = await axios.get(PROPERTYFINDER_API_ENDPOINT, {
-          params: {
-            location: area,
-            purpose: 'for-rent',
-            ...filters,
-            page,
-            per_page: pageSize
-          },
-          headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PROPERTYFINDER_API_KEY || 'pf_api_key'}`
-          }
-        });
-        
-        if (pfRes.data?.listings) {
-          const pfListings = pfRes.data.listings.map((listing: any) => {
-            return normalizeListingData(listing, 'propertyfinder');
-          });
-          
-          allListings = [...allListings, ...pfListings];
-          console.log(`Successfully fetched ${pfListings.length} PropertyFinder rental listings`);
-        }
-      } catch (error) {
-        console.warn('PropertyFinder API fetch failed:', error);
+      if (pfListings.status === 'fulfilled') {
+        allListings = [...allListings, ...pfListings.value];
       }
       
-      // Fetch from Dubizzle
-      try {
-        const dubizzleRes = await axios.get(DUBIZZLE_API_ENDPOINT, {
-          params: {
-            location: area,
-            purpose: 'for-rent',
-            ...filters,
-            page,
-            per_page: pageSize
-          },
-          headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_DUBIZZLE_API_KEY || 'dubizzle_api_key'}`
-          }
-        });
-        
-        if (dubizzleRes.data?.results) {
-          const dubizzleListings = dubizzleRes.data.results.map((listing: any) => {
-            return normalizeListingData(listing, 'dubizzle');
-          });
-          
-          allListings = [...allListings, ...dubizzleListings];
-          console.log(`Successfully fetched ${dubizzleListings.length} Dubizzle rental listings`);
-        }
-      } catch (error) {
-        console.warn('Dubizzle API fetch failed:', error);
+      if (dubizzleListings.status === 'fulfilled') {
+        allListings = [...allListings, ...dubizzleListings.value];
       }
-      
-      // Deduplicate listings by comparing essential properties
-      const uniqueListings: Record<string, Partial<RentalListing>> = {};
-      
+
+      // Remove duplicates based on similar properties
+      const uniqueListings: RentalListing[] = [];
+      const seenProperties = new Set();
+
       for (const listing of allListings) {
-        // Create a unique key based on essential properties
-        const key = `${listing.type}-${listing.bedrooms}-${listing.size}-${listing.location}`;
-        
-        if (!uniqueListings[key] || (listing.link && !uniqueListings[key].link)) {
-          uniqueListings[key] = listing;
+        const key = `${listing.type}-${listing.bedrooms}-${listing.location}-${Math.round(listing.rent / 1000)}`;
+        if (!seenProperties.has(key)) {
+          seenProperties.add(key);
+          uniqueListings.push(listing);
         }
       }
-      
-      // Verify prices for all listings
+
+      // Cross-verify and adjust prices
       const verifiedListings = await Promise.all(
-        Object.values(uniqueListings).map(async (listing) => {
-          try {
-            // Verify the rental price
-            const verifiedRent = await verifyRentPrice(
-              listing.location || area,
-              listing.type || 'Residential',
-              listing.rent || 0,
-              listing.size || 0
-            );
-            
-            // Return complete listing with ID and verified rent
-            return {
-              id: listing.id || `listing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              ...listing,
-              rent: verifiedRent
-            } as RentalListing;
-          } catch (error) {
-            // Return the original listing if verification fails
-            return {
-              id: listing.id || `listing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              ...listing
-            } as RentalListing;
-          }
-        })
+        uniqueListings.map(async (listing) => ({
+          ...listing,
+          rent: await crossVerifyPrice(listing, uniqueListings)
+        }))
       );
-      
-      // Throw error if no listings found - this will trigger retry
-      if (verifiedListings.length === 0) {
-        throw new Error(`No rental listings found for ${area}. Retrying...`);
-      }
-      
+
+      // Apply additional filters
+      let filteredListings = verifiedListings.filter(listing => {
+        if (filters.rentMin && listing.rent < parseInt(filters.rentMin)) return false;
+        if (filters.rentMax && listing.rent > parseInt(filters.rentMax)) return false;
+        if (filters.sizeMin && listing.size < parseInt(filters.sizeMin)) return false;
+        if (filters.sizeMax && listing.size > parseInt(filters.sizeMax)) return false;
+        if (filters.furnishing && listing.furnishing !== filters.furnishing) return false;
+        return true;
+      });
+
+      // Sort by rent (ascending)
+      filteredListings.sort((a, b) => a.rent - b.rent);
+
       // Paginate results
       const startIndex = (page - 1) * pageSize;
-      const paginatedListings = verifiedListings.slice(startIndex, startIndex + pageSize);
-      
+      const paginatedListings = filteredListings.slice(startIndex, startIndex + pageSize);
+
+      if (filteredListings.length === 0) {
+        throw new Error(`No rental listings found for ${area} with current filters`);
+      }
+
+      console.log(`Successfully fetched ${filteredListings.length} verified rental listings`);
+
       return {
         listings: paginatedListings,
-        total: verifiedListings.length,
+        total: filteredListings.length,
         page,
         pageSize
       };
     });
   },
-  
+
   // Check for new listings since the last fetch
   checkForNewListings: async (area: string, lastFetchTime: number): Promise<number> => {
-    return await withRetry(async () => {
-      // Make a real API call to check for new listings
-      const bayutRes = await axios.get(BAYUT_API_ENDPOINT, {
-        params: {
-          locationExternalIDs: area,
-          purpose: 'for-rent',
-          hitsPerPage: 100,
-          sort: 'date-desc'
-        },
-        headers: {
-          'X-RapidAPI-Key': process.env.NEXT_PUBLIC_BAYUT_API_KEY || '1a2b3c4d5emshf6g7h8i9j0k1l2mp1n3o4pjsnq5r6s7t8u9v0',
-          'X-RapidAPI-Host': 'bayut.p.rapidapi.com'
-        }
-      });
-
+    try {
+      // Fetch recent listings from Bayut
+      const recentListings = await scrapeBayutListings(area);
+      
       // Count listings newer than lastFetchTime
-      const newListings = (bayutRes.data?.hits || []).filter((listing: any) => {
-        const listingDate = new Date(listing.createdAt || listing.updatedAt || 0).getTime();
-        return listingDate > lastFetchTime;
+      const newListings = recentListings.filter(listing => {
+        const listingTime = new Date(listing.availableSince).getTime();
+        return listingTime > lastFetchTime;
       });
 
-      console.log(`Found ${newListings.length} new listings since last check`);
       return newListings.length;
-    });
+    } catch (error) {
+      console.error('Error checking for new listings:', error);
+      return 0;
+    }
   }
 };
 
