@@ -184,8 +184,7 @@ const RentalDataTable = () => {
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   
-  // Add this state variable inside the RentalDataTable component
-  const [expandedListings, setExpandedListings] = useState<Record<string, boolean>>({});
+  
   
   // Convert filters to API-compatible format
   const getApiFilters = useCallback((): RentalFilter => {
@@ -576,25 +575,9 @@ const RentalDataTable = () => {
     }
   };
 
-  // Replace getDeveloperInfo and renderDeveloperInfo functions with new amenities and listing details renderer
-  const renderListingDetails = (listing: RentalListing) => {
-    return (
-      <div className="mt-2 p-4 bg-white rounded-lg border border-almond">
-        <div className="text-dubai-blue-900/70 text-center py-4">
-          <FaInfoCircle className="text-2xl mx-auto mb-2" />
-          <p>Additional property details available upon request</p>
-        </div>
-      </div>
-    );
-  };
+  
 
-  // Add this function to toggle expandable rows
-  const toggleListingExpansion = (listingId: string) => {
-    setExpandedListings(prev => ({
-      ...prev,
-      [listingId]: !prev[listingId]
-    }));
-  };
+  
 
   return (
     <div className="bg-anti-flash-white rounded-lg shadow-md">
@@ -896,11 +879,7 @@ const RentalDataTable = () => {
               </tr>
             ) : listings.length > 0 ? (
               listings.map((listing) => (
-                <React.Fragment key={listing.id}>
-                  <tr 
-                    className={`hover:bg-beige transition-colors cursor-pointer ${expandedListings[listing.id] ? 'bg-beige' : ''}`}
-                    onClick={() => toggleListingExpansion(listing.id)}
-                  >
+                                <React.Fragment key={listing.id}>                  <tr                     className="hover:bg-beige transition-colors"                  >
                     <td className="flex items-center">
                       <span className="mr-2">
                         {listing.type === 'Apartment' ? <FaBuilding className="text-tuscany" /> : 
@@ -924,30 +903,8 @@ const RentalDataTable = () => {
                         <FaChair className="mr-1" /> {listing.furnishing}
                       </span>
                     </td>
-                    <td className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <FaCalendarAlt className="mr-2 text-tuscany" />
-                        {new Date(listing.availableSince).toLocaleDateString()}
-                      </div>
-                      <button 
-                        className="text-dubai-blue-700 hover:text-tuscany"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleListingExpansion(listing.id);
-                        }}
-                      >
-                        {expandedListings[listing.id] ? 'Hide Details' : 'Show Details'}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedListings[listing.id] && (
-                    <tr className="bg-beige">
-                      <td colSpan={7} className="px-4 py-3">
-                        {renderListingDetails(listing)}
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
+                                        <td>                      <div className="flex items-center">                        <FaCalendarAlt className="mr-2 text-tuscany" />                        {new Date(listing.availableSince).toLocaleDateString()}                      </div>                    </td>
+                                      </tr>                </React.Fragment>
               ))
             ) : (
               <tr>
