@@ -90,7 +90,25 @@ export async function withRetry<T>(fn: () => Promise<T>, retries = API_RETRY_COU
 }
 
 // Real data fetching function with retry mechanism
-export async function fetchLivePropertyData(searchQuery: string, filterOptions?: {  location?: string;  propertyType?: string;  bedrooms?: string | number;}): Promise<PropertyData> {    console.log('🔍 Fetching live property data for:', searchQuery, filterOptions);    // Import apiKeyService dynamically to avoid circular dependencies  const { default: apiKeyService } = await import('../services/apiKeyService');    // Check if API key is configured - REQUIRED for data access  const apiKey = apiKeyService.getStoredApiKey();  if (!apiKey) {    throw new Error('OpenAI API key is required to access property data. Please configure your API key in the settings page.');  }    try {    // First try to get data directly from Dubai Land Department service    const area = filterOptions?.location || searchQuery;
+export async function fetchLivePropertyData(searchQuery: string, filterOptions?: {
+  location?: string;
+  propertyType?: string;
+  bedrooms?: string | number;
+}): Promise<PropertyData> {
+  console.log('🔍 Fetching live property data for:', searchQuery, filterOptions);
+  
+  // Import apiKeyService dynamically to avoid circular dependencies
+  const { default: apiKeyService } = await import('../services/apiKeyService');
+  
+  // Check if API key is configured - REQUIRED for data access
+  const apiKey = apiKeyService.getStoredApiKey();
+  if (!apiKey) {
+    throw new Error('OpenAI API key is required to access property data. Please configure your API key in the settings page.');
+  }
+  
+  try {
+    // First try to get data directly from Dubai Land Department service
+    const area = filterOptions?.location || searchQuery;
     
     try {
       console.log('📊 Attempting to fetch real-time DLD data...');
@@ -185,7 +203,23 @@ function transformDLDToPropertyData(
   // Calculate current market value from actual sales data
   const currentValue = summary.averagePrice || (valuations.length > 0 ? valuations[0].propertyTotalValue : 2500000);
   
-  // Parse bedrooms properly with better validation  let bedrooms = 2; // Default value  if (filterOptions?.bedrooms !== undefined) {    if (typeof filterOptions.bedrooms === 'string') {      if (filterOptions.bedrooms === 'Studio') {        bedrooms = 0;      } else {        const parsed = parseInt(filterOptions.bedrooms, 10);        bedrooms = isNaN(parsed) ? 2 : parsed;      }    } else if (typeof filterOptions.bedrooms === 'number') {      bedrooms = isNaN(filterOptions.bedrooms) ? 2 : filterOptions.bedrooms;    }  }    // Calculate bathrooms based on bedrooms (realistic ratio)  const bathrooms = bedrooms === 0 ? 1 : Math.min(bedrooms, Math.max(1, Math.floor(bedrooms * 0.75) + 1));
+  // Parse bedrooms properly with better validation
+  let bedrooms = 2; // Default value
+  if (filterOptions?.bedrooms !== undefined) {
+    if (typeof filterOptions.bedrooms === 'string') {
+      if (filterOptions.bedrooms === 'Studio') {
+        bedrooms = 0;
+      } else {
+        const parsed = parseInt(filterOptions.bedrooms, 10);
+        bedrooms = isNaN(parsed) ? 2 : parsed;
+      }
+    } else if (typeof filterOptions.bedrooms === 'number') {
+      bedrooms = isNaN(filterOptions.bedrooms) ? 2 : filterOptions.bedrooms;
+    }
+  }
+  
+  // Calculate bathrooms based on bedrooms (realistic ratio)
+  const bathrooms = bedrooms === 0 ? 1 : Math.min(bedrooms, Math.max(1, Math.floor(bedrooms * 0.75) + 1));
   
   // Calculate square footage based on Dubai standards
   const sqft = calculateRealisticSqft(bedrooms, filterOptions?.propertyType || 'Apartment', area);
@@ -620,7 +654,47 @@ function generateNearbyProperties(location: string, bedrooms: number) {
   return nearby;
 }
 
-// Generate ongoing projects for a locationfunction generateOngoingProjects(location: string, developer: string) {  const ongoingProjects: OngoingProject[] = [];  const currentYear = new Date().getFullYear();    for (let i = 0; i < 3; i++) {    const projectStatuses: Array<'In Ideation' | 'Pre-Funding' | 'Under Construction' | 'Nearly Complete'> = [      'In Ideation', 'Pre-Funding', 'Under Construction', 'Nearly Complete'    ];    const status = projectStatuses[Math.floor(Math.random() * projectStatuses.length)];        // Generate realistic completion dates based on project status    let completionYear: number;    switch (status) {      case 'In Ideation':        completionYear = currentYear + Math.floor(Math.random() * 3) + 3; // 3-5 years from now        break;      case 'Pre-Funding':        completionYear = currentYear + Math.floor(Math.random() * 2) + 2; // 2-3 years from now        break;      case 'Under Construction':        completionYear = currentYear + Math.floor(Math.random() * 2) + 1; // 1-2 years from now        break;      case 'Nearly Complete':        completionYear = currentYear + (Math.random() > 0.5 ? 1 : 0); // This year or next year        break;      default:        completionYear = currentYear + 2;    }        ongoingProjects.push({      id: `project-${i}-${Date.now().toString().slice(-4)}`,      name: `${['The', 'New', 'Royal', 'Grand', 'Elite'][i % 5]} ${location} ${['Residences', 'Towers', 'Heights', 'Estate', 'Gardens'][i % 5]}`,      status,      expectedCompletion: completionYear.toString(),      developer    });  }    return ongoingProjects;}
+// Generate ongoing projects for a location
+function generateOngoingProjects(location: string, developer: string) {
+  const ongoingProjects: OngoingProject[] = [];
+  const currentYear = new Date().getFullYear();
+  
+  for (let i = 0; i < 3; i++) {
+    const projectStatuses: Array<'In Ideation' | 'Pre-Funding' | 'Under Construction' | 'Nearly Complete'> = [
+      'In Ideation', 'Pre-Funding', 'Under Construction', 'Nearly Complete'
+    ];
+    const status = projectStatuses[Math.floor(Math.random() * projectStatuses.length)];
+    
+    // Generate realistic completion dates based on project status
+    let completionYear: number;
+    switch (status) {
+      case 'In Ideation':
+        completionYear = currentYear + Math.floor(Math.random() * 3) + 3; // 3-5 years from now
+        break;
+      case 'Pre-Funding':
+        completionYear = currentYear + Math.floor(Math.random() * 2) + 2; // 2-3 years from now
+        break;
+      case 'Under Construction':
+        completionYear = currentYear + Math.floor(Math.random() * 2) + 1; // 1-2 years from now
+        break;
+      case 'Nearly Complete':
+        completionYear = currentYear + (Math.random() > 0.5 ? 1 : 0); // This year or next year
+        break;
+      default:
+        completionYear = currentYear + 2;
+    }
+    
+    ongoingProjects.push({
+      id: `project-${i}-${Date.now().toString().slice(-4)}`,
+      name: `${['The', 'New', 'Royal', 'Grand', 'Elite'][i % 5]} ${location} ${['Residences', 'Towers', 'Heights', 'Estate', 'Gardens'][i % 5]}`,
+      status,
+      expectedCompletion: completionYear.toString(),
+      developer
+    });
+  }
+  
+  return ongoingProjects;
+}
 
 // Generate developer information
 function generateDeveloperInfo(developer: string) {
@@ -649,7 +723,21 @@ function generateFallbackPropertyData(searchQuery: string, filterOptions?: {
   
   const location = filterOptions?.location || searchQuery || 'Dubai Marina';
   const propertyType = filterOptions?.propertyType || 'Apartment';
-  // Parse bedrooms properly with NaN validation  let bedrooms = 2; // Default value  if (filterOptions?.bedrooms !== undefined) {    if (typeof filterOptions.bedrooms === 'string') {      if (filterOptions.bedrooms === 'Studio') {        bedrooms = 0;      } else {        const parsed = parseInt(filterOptions.bedrooms, 10);        bedrooms = isNaN(parsed) ? 2 : parsed;      }    } else if (typeof filterOptions.bedrooms === 'number') {      bedrooms = isNaN(filterOptions.bedrooms) ? 2 : filterOptions.bedrooms;    }  }
+  
+  // Parse bedrooms properly with NaN validation
+  let bedrooms = 2; // Default value
+  if (filterOptions?.bedrooms !== undefined) {
+    if (typeof filterOptions.bedrooms === 'string') {
+      if (filterOptions.bedrooms === 'Studio') {
+        bedrooms = 0;
+      } else {
+        const parsed = parseInt(filterOptions.bedrooms, 10);
+        bedrooms = isNaN(parsed) ? 2 : parsed;
+      }
+    } else if (typeof filterOptions.bedrooms === 'number') {
+      bedrooms = isNaN(filterOptions.bedrooms) ? 2 : filterOptions.bedrooms;
+    }
+  }
   
   // Get appropriate developer for the area
   const developerInfo = getDeveloperForArea(location, propertyType);
