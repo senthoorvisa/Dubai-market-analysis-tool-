@@ -186,33 +186,38 @@ function transformDLDToPropertyData(
     p.area.toLowerCase().includes(area.toLowerCase())
   ).slice(0, 5);
 
-  // Get developer information
-  const relevantDeveloper = developers.find((d: any) => 
-    relevantTransactions.some((t: any) => t.project.toLowerCase().includes(d.developerName.toLowerCase()))
-  ) || developers[0];
+  // Get developer information - prioritize based on area and property type
+  const relevantDeveloper = getDeveloperForArea(area, filterOptions?.propertyType) || developers[0];
 
   // Calculate current market value from actual sales data
   const currentValue = summary.averagePrice || (valuations.length > 0 ? valuations[0].propertyTotalValue : 2500000);
   
+  // Parse bedrooms properly
   const bedrooms = typeof filterOptions?.bedrooms === 'string' 
     ? (filterOptions.bedrooms === 'Studio' ? 0 : parseInt(filterOptions.bedrooms, 10))
     : (filterOptions?.bedrooms || 2);
   
+  // Calculate bathrooms based on bedrooms (realistic ratio)
+  const bathrooms = bedrooms === 0 ? 1 : Math.min(bedrooms, Math.max(1, Math.floor(bedrooms * 0.75) + 1));
+  
+  // Calculate square footage based on Dubai standards
+  const sqft = calculateRealisticSqft(bedrooms, filterOptions?.propertyType || 'Apartment', area);
+  
+  // Get realistic built year based on area development
+  const builtYear = getRealisticBuiltYear(area, filterOptions?.propertyType);
+  
   // Generate metadata based on real data
   const metadata: PropertyMetadata = {
     id: `prop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: searchQuery || `${area} Property`,
+    name: searchQuery || `${area} ${filterOptions?.propertyType || 'Property'}`,
     beds: bedrooms,
-    baths: Math.max(1, bedrooms),
-    sqft: Math.round((bedrooms * 450 + 900 + Math.random() * 600) / 50) * 50,
+    baths: bathrooms,
+    sqft: sqft,
     developer: relevantDeveloper?.developerName || 'Premium Developer',
-    purchaseYear: new Date().getFullYear() - Math.floor(Math.random() * 5),
+    purchaseYear: builtYear,
     location: area,
-    status: Math.random() > 0.8 ? 'Under Construction' : 'Completed',
-    coordinates: {
-      lat: 25.0657 + (Math.random() - 0.5) * 0.1,
-      lng: 55.1713 + (Math.random() - 0.5) * 0.1
-    }
+    status: getPropertyStatus(builtYear),
+    coordinates: getAreaCoordinates(area)
   };
 
   return {
@@ -234,6 +239,186 @@ function transformDLDToPropertyData(
       averageROI: 9.2,
       revenueByYear: generateDeveloperRevenueData()
     }
+  };
+}
+
+// Helper function to get appropriate developer for area and property type
+function getDeveloperForArea(area: string, propertyType?: string) {
+  const developerMapping: Record<string, string[]> = {
+    'Downtown Dubai': ['Emaar Properties', 'DAMAC Properties'],
+    'Dubai Marina': ['Emaar Properties', 'DAMAC Properties', 'Select Group'],
+    'Palm Jumeirah': ['Nakheel', 'Omniyat', 'DAMAC Properties'],
+    'Business Bay': ['DAMAC Properties', 'Omniyat', 'Dubai Properties'],
+    'Jumeirah Beach Residence': ['Dubai Properties', 'Amwaj'],
+    'Dubai Hills Estate': ['Emaar Properties', 'Meraas'],
+    'Arabian Ranches': ['Emaar Properties'],
+    'Jumeirah Lake Towers': ['Dubai Multi Commodities Centre', 'Tebyan'],
+    'Dubai Silicon Oasis': ['Dubai Silicon Oasis Authority'],
+    'International City': ['Nakheel'],
+    'Dubai Sports City': ['Dubai Properties'],
+    'Emirates Hills': ['Emaar Properties'],
+    'Jumeirah Village Circle': ['Nakheel', 'Danube Properties']
+  };
+
+  const developers = developerMapping[area] || ['Emaar Properties', 'DAMAC Properties', 'Nakheel'];
+  const selectedDeveloper = developers[Math.floor(Math.random() * developers.length)];
+  
+  return {
+    developerNumber: `DEV-${selectedDeveloper.replace(/\s+/g, '').toUpperCase()}`,
+    developerName: selectedDeveloper
+  };
+}
+
+// Helper function to calculate realistic square footage
+function calculateRealisticSqft(bedrooms: number, propertyType: string, area: string): number {
+  let baseSqft = 0;
+  
+  // Base square footage by bedroom count
+  switch (bedrooms) {
+    case 0: // Studio
+      baseSqft = 450;
+      break;
+    case 1:
+      baseSqft = 750;
+      break;
+    case 2:
+      baseSqft = 1100;
+      break;
+    case 3:
+      baseSqft = 1500;
+      break;
+    case 4:
+      baseSqft = 2200;
+      break;
+    case 5:
+      baseSqft = 3000;
+      break;
+    default:
+      baseSqft = 3500;
+  }
+  
+  // Adjust for property type
+  if (propertyType === 'Villa') {
+    baseSqft *= 1.8;
+  } else if (propertyType === 'Townhouse') {
+    baseSqft *= 1.4;
+  } else if (propertyType === 'Penthouse') {
+    baseSqft *= 1.6;
+  }
+  
+  // Adjust for area (premium locations have larger units)
+  const areaMultipliers: Record<string, number> = {
+    'Palm Jumeirah': 1.4,
+    'Downtown Dubai': 1.2,
+    'Dubai Marina': 1.1,
+    'Emirates Hills': 1.5,
+    'Arabian Ranches': 1.3,
+    'Dubai Hills Estate': 1.2,
+    'International City': 0.8,
+    'Dubai Silicon Oasis': 0.9
+  };
+  
+  baseSqft *= (areaMultipliers[area] || 1.0);
+  
+  // Add some variation (±15%)
+  baseSqft *= (0.85 + Math.random() * 0.3);
+  
+  // Round to nearest 50
+  return Math.round(baseSqft / 50) * 50;
+}
+
+// Helper function to get realistic built year based on area development
+function getRealisticBuiltYear(area: string, propertyType?: string): number {
+  const currentYear = new Date().getFullYear();
+  
+  // Area development timelines
+  const areaTimelines: Record<string, { start: number; peak: number }> = {
+    'Downtown Dubai': { start: 2004, peak: 2010 },
+    'Dubai Marina': { start: 2003, peak: 2012 },
+    'Palm Jumeirah': { start: 2001, peak: 2008 },
+    'Business Bay': { start: 2005, peak: 2015 },
+    'Jumeirah Beach Residence': { start: 2002, peak: 2009 },
+    'Dubai Hills Estate': { start: 2014, peak: 2020 },
+    'Arabian Ranches': { start: 2004, peak: 2008 },
+    'Jumeirah Lake Towers': { start: 2005, peak: 2012 },
+    'Dubai Silicon Oasis': { start: 2003, peak: 2010 },
+    'International City': { start: 2002, peak: 2008 },
+    'Dubai Sports City': { start: 2004, peak: 2010 },
+    'Emirates Hills': { start: 2003, peak: 2007 },
+    'Jumeirah Village Circle': { start: 2005, peak: 2013 }
+  };
+  
+  const timeline = areaTimelines[area] || { start: 2005, peak: 2012 };
+  
+  // Most properties built between start and current year, with peak period having higher probability
+  const weights = [];
+  const years = [];
+  
+  for (let year = timeline.start; year <= currentYear; year++) {
+    years.push(year);
+    
+    // Higher weight for peak period and recent years
+    let weight = 1;
+    if (year >= timeline.peak - 3 && year <= timeline.peak + 3) {
+      weight = 3; // Peak development period
+    } else if (year >= currentYear - 5) {
+      weight = 2; // Recent developments
+    }
+    
+    weights.push(weight);
+  }
+  
+  // Weighted random selection
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (let i = 0; i < weights.length; i++) {
+    random -= weights[i];
+    if (random <= 0) {
+      return years[i];
+    }
+  }
+  
+  return timeline.peak; // Fallback
+}
+
+// Helper function to determine property status based on built year
+function getPropertyStatus(builtYear: number): 'Completed' | 'Under Construction' | 'Planned' {
+  const currentYear = new Date().getFullYear();
+  
+  if (builtYear <= currentYear - 1) {
+    return 'Completed';
+  } else if (builtYear === currentYear) {
+    return Math.random() > 0.5 ? 'Completed' : 'Under Construction';
+  } else {
+    return 'Under Construction';
+  }
+}
+
+// Helper function to get area coordinates
+function getAreaCoordinates(area: string): { lat: number; lng: number } {
+  const coordinates: Record<string, { lat: number; lng: number }> = {
+    'Downtown Dubai': { lat: 25.1972, lng: 55.2744 },
+    'Dubai Marina': { lat: 25.0657, lng: 55.1713 },
+    'Palm Jumeirah': { lat: 25.1124, lng: 55.1390 },
+    'Business Bay': { lat: 25.1877, lng: 55.2652 },
+    'Jumeirah Beach Residence': { lat: 25.0759, lng: 55.1672 },
+    'Dubai Hills Estate': { lat: 25.1107, lng: 55.2441 },
+    'Arabian Ranches': { lat: 25.0548, lng: 55.2708 },
+    'Jumeirah Lake Towers': { lat: 25.0693, lng: 55.1614 },
+    'Dubai Silicon Oasis': { lat: 25.1197, lng: 55.3573 },
+    'International City': { lat: 25.1684, lng: 55.4058 },
+    'Dubai Sports City': { lat: 24.9994, lng: 55.1881 },
+    'Emirates Hills': { lat: 25.1147, lng: 55.1816 },
+    'Jumeirah Village Circle': { lat: 25.0598, lng: 55.2065 }
+  };
+  
+  const baseCoords = coordinates[area] || { lat: 25.0657, lng: 55.1713 };
+  
+  // Add small random variation
+  return {
+    lat: baseCoords.lat + (Math.random() - 0.5) * 0.01,
+    lng: baseCoords.lng + (Math.random() - 0.5) * 0.01
   };
 }
 
@@ -295,6 +480,13 @@ function generateNearbyFromDLDTransactions(transactions: any[], area: string) {
       const originalYear = new Date(transaction.transactionDate).getFullYear();
       const growthFactor = 1 + (0.065 * (currentYear - originalYear)); // 6.5% annual growth
       
+      // Get appropriate developer for this area
+      const nearbyDeveloper = getDeveloperForArea(nearbyArea);
+      
+      // Ensure proper bedroom/bathroom count
+      const beds = transaction.rooms || Math.floor(Math.random() * 4) + 1;
+      const baths = beds === 0 ? 1 : Math.min(beds, Math.max(1, Math.floor(beds * 0.75) + 1));
+      
       nearbyProperties.push({
         id: `nearby-${i}-${Date.now().toString().slice(-4)}`,
         name: transaction.project || `${nearbyArea} Property`,
@@ -303,10 +495,10 @@ function generateNearbyFromDLDTransactions(transactions: any[], area: string) {
         originalYear,
         currentPrice: Math.round(transaction.amount * growthFactor / 10000) * 10000,
         currentYear,
-        beds: transaction.rooms || Math.floor(Math.random() * 4) + 1,
-        baths: Math.max(1, transaction.rooms || Math.floor(Math.random() * 3) + 1),
+        beds: beds,
+        baths: baths,
         sqft: Math.round(transaction.propertySize * 10.764), // Convert sq.m to sq.ft
-        developer: 'Premium Developer'
+        developer: nearbyDeveloper.developerName
       });
     }
   }
@@ -385,35 +577,7 @@ function generatePriceHistory(startYear: number) {
   return priceHistory;
 }
 
-// Generate nearby properties based on location and bedrooms (updated for sale prices)
-function generateNearbyProperties(location: string, bedrooms: number) {
-  const nearby = [];
-  
-  for (let i = 0; i < 5; i++) {
-    const originalYear = Math.floor(Math.random() * 10) + 2010;
-    // Higher base prices for sales
-    const originalPrice = Math.round((Math.random() * 4000000 + 1500000) / 100000) * 100000;
-    const currentYear = new Date().getFullYear();
-    const growthFactor = 1 + (Math.random() * 0.12 + 0.06) * (currentYear - originalYear); // 6-18% total growth
-    const currentPrice = Math.round(originalPrice * growthFactor / 100000) * 100000;
-    
-    nearby.push({
-      id: `nearby-${i}-${Date.now().toString().slice(-4)}`,
-      name: `${location} ${['Heights', 'Residence', 'Tower', 'Gardens', 'View'][i % 5]} ${i+1}`,
-      distance: Math.round((Math.random() * 4 + 0.5) * 10) / 10,
-      originalPrice,
-      originalYear,
-      currentPrice,
-      currentYear,
-      beds: bedrooms + (Math.random() > 0.5 ? 1 : -1) * (Math.random() > 0.7 ? 1 : 0),
-      baths: bedrooms + (Math.random() > 0.7 ? 1 : 0),
-      sqft: Math.round((bedrooms * 450 + 900 + Math.random() * 600) / 50) * 50,
-      developer: ['Emaar', 'Damac', 'Nakheel', 'Meraas', 'Dubai Properties'][Math.floor(Math.random() * 5)]
-    });
-  }
-  
-  return nearby;
-}
+// Generate nearby properties based on location and bedrooms (updated for sale prices)function generateNearbyProperties(location: string, bedrooms: number) {  const nearby = [];    for (let i = 0; i < 5; i++) {    const originalYear = getRealisticBuiltYear(location);    // Higher base prices for sales    const originalPrice = Math.round((Math.random() * 4000000 + 1500000) / 100000) * 100000;    const currentYear = new Date().getFullYear();    const growthFactor = 1 + (Math.random() * 0.12 + 0.06) * (currentYear - originalYear); // 6-18% total growth    const currentPrice = Math.round(originalPrice * growthFactor / 100000) * 100000;        // Get appropriate developer for this location    const developerInfo = getDeveloperForArea(location);        // Calculate proper bedroom/bathroom counts    const nearbyBeds = Math.max(0, bedrooms + (Math.random() > 0.5 ? 1 : -1) * (Math.random() > 0.7 ? 1 : 0));    const nearbyBaths = nearbyBeds === 0 ? 1 : Math.min(nearbyBeds, Math.max(1, Math.floor(nearbyBeds * 0.75) + 1));        nearby.push({      id: `nearby-${i}-${Date.now().toString().slice(-4)}`,      name: `${location} ${['Heights', 'Residence', 'Tower', 'Gardens', 'View'][i % 5]} ${i+1}`,      distance: Math.round((Math.random() * 4 + 0.5) * 10) / 10,      originalPrice,      originalYear,      currentPrice,      currentYear,      beds: nearbyBeds,      baths: nearbyBaths,      sqft: calculateRealisticSqft(nearbyBeds, 'Apartment', location),      developer: developerInfo.developerName    });  }    return nearby;}
 
 // Generate ongoing projects for a location
 function generateOngoingProjects(location: string, developer: string) {
@@ -469,36 +633,42 @@ function generateFallbackPropertyData(searchQuery: string, filterOptions?: {
     ? (filterOptions.bedrooms === 'Studio' ? 0 : parseInt(filterOptions.bedrooms, 10))
     : (filterOptions?.bedrooms || 2);
   
-  const developer = ['Emaar Properties', 'DAMAC Properties', 'Nakheel', 'Dubai Properties', 'Meraas'][Math.floor(Math.random() * 5)];
-  const purchaseYear = Math.floor(Math.random() * 10) + 2015;
-  const sqft = Math.round((bedrooms * 450 + 900 + Math.random() * 600) / 50) * 50;
+  // Get appropriate developer for the area
+  const developerInfo = getDeveloperForArea(location, propertyType);
+  const developer = developerInfo.developerName;
+  
+  // Get realistic built year
+  const purchaseYear = getRealisticBuiltYear(location, propertyType);
+  
+  // Calculate realistic square footage
+  const sqft = calculateRealisticSqft(bedrooms, propertyType, location);
+  
+  // Calculate proper bathroom count
+  const bathrooms = bedrooms === 0 ? 1 : Math.min(bedrooms, Math.max(1, Math.floor(bedrooms * 0.75) + 1));
   
   const metadata: PropertyMetadata = {
     id: `prop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: searchQuery || `${location} ${propertyType}`,
     beds: bedrooms,
-    baths: Math.max(1, bedrooms),
+    baths: bathrooms,
     sqft,
     developer,
     purchaseYear,
     location,
-    status: Math.random() > 0.8 ? 'Under Construction' : 'Completed',
-    coordinates: {
-      lat: 25.0657 + (Math.random() - 0.5) * 0.1, // Dubai coordinates with variation
-      lng: 55.1713 + (Math.random() - 0.5) * 0.1
-    }
+    status: getPropertyStatus(purchaseYear),
+    coordinates: getAreaCoordinates(location)
   };
   
   const priceHistory = generatePriceHistory(purchaseYear);
   const nearby = generateNearbyProperties(location, bedrooms);
   const ongoingProjects = generateOngoingProjects(location, developer);
-  const developerInfo = generateDeveloperInfo(developer);
+  const developerInfoDetails = generateDeveloperInfo(developer);
   
   return {
     metadata,
     priceHistory,
     nearby,
     ongoingProjects,
-    developer: developerInfo
+    developer: developerInfoDetails
   };
 }
