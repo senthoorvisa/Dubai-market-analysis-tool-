@@ -90,17 +90,7 @@ export async function withRetry<T>(fn: () => Promise<T>, retries = API_RETRY_COU
 }
 
 // Real data fetching function with retry mechanism
-export async function fetchLivePropertyData(searchQuery: string, filterOptions?: {
-  location?: string;
-  propertyType?: string;
-  bedrooms?: string | number;
-}): Promise<PropertyData> {
-  
-  console.log('🔍 Fetching live property data for:', searchQuery, filterOptions);
-  
-  try {
-    // First try to get data directly from Dubai Land Department service
-    const area = filterOptions?.location || searchQuery;
+export async function fetchLivePropertyData(searchQuery: string, filterOptions?: {  location?: string;  propertyType?: string;  bedrooms?: string | number;}): Promise<PropertyData> {    console.log('🔍 Fetching live property data for:', searchQuery, filterOptions);    // Import apiKeyService dynamically to avoid circular dependencies  const { default: apiKeyService } = await import('../services/apiKeyService');    // Check if API key is configured - REQUIRED for data access  const apiKey = apiKeyService.getStoredApiKey();  if (!apiKey) {    throw new Error('OpenAI API key is required to access property data. Please configure your API key in the settings page.');  }    try {    // First try to get data directly from Dubai Land Department service    const area = filterOptions?.location || searchQuery;
     
     try {
       console.log('📊 Attempting to fetch real-time DLD data...');

@@ -173,9 +173,7 @@ export default function PropertyLookupRefined() {
   const [chartZoom, setChartZoom] = useState<{startIndex: number, endIndex: number} | null>(null);
   const [developerDetailsExpanded, setDeveloperDetailsExpanded] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [fetchingPrice, setFetchingPrice] = useState(false);
-  
-  // Format currency
+    const [fetchingPrice, setFetchingPrice] = useState(false);  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);  // Check API key configuration on component mount  useEffect(() => {    const checkApiKey = () => {      const apiKey = apiKeyService.getStoredApiKey();      setIsApiKeyConfigured(!!apiKey);    };        checkApiKey();        // Check periodically in case user configures API key in another tab    const interval = setInterval(checkApiKey, 5000);    return () => clearInterval(interval);  }, []);    // Format currency
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-AE', {
       style: 'currency',
@@ -202,42 +200,7 @@ export default function PropertyLookupRefined() {
     setError('');
     setPropertyData(null);
     
-    try {
-      // Always proceed with search, even if OpenAI API isn't configured
-      const apiKey = apiKeyService.getStoredApiKey();
-      console.log('API Key configured:', !!apiKey);
-      
-      // For debugging purposes
-      console.log('Search parameters:', { searchTerm, location, propertyType, bedrooms });
-
-      // First, try to get AI-powered information about this property if filters are set
-      if (location && propertyType && bedrooms) {
-        const criteria: PropertySearchCriteria = {
-          location,
-          propertyType, 
-          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
-        };
-        
-        try {
-          const aiResponse = await getPropertyInfo(criteria);
-          
-          if (!aiResponse.success) {
-            console.error('Error getting AI property info:', aiResponse.error);
-          }
-        } catch (err) {
-          console.error('Error calling OpenAI API:', err);
-        }
-      }
-
-      // Use the fetchLivePropertyData function to get real-time data
-      console.log('Fetching property data with:', { searchTerm, location, propertyType, bedrooms });
-      const data = await fetchLivePropertyData(searchTerm || location, {
-        location,
-        propertyType,
-        bedrooms
-      });
-      
-      setPropertyData(data);
+    try {      // Check if API key is configured - REQUIRED for data access      const apiKey = apiKeyService.getStoredApiKey();            if (!apiKey) {        setError('OpenAI API key is required to access property data. Please configure your API key in the settings page to continue.');        setLoading(false);        return;      }            console.log('API Key configured:', !!apiKey);      console.log('Search parameters:', { searchTerm, location, propertyType, bedrooms });      // Get AI-powered information about this property if filters are set      if (location && propertyType && bedrooms) {        const criteria: PropertySearchCriteria = {          location,          propertyType,           bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)        };                try {          const aiResponse = await getPropertyInfo(criteria);                    if (!aiResponse.success) {            console.error('Error getting AI property info:', aiResponse.error);            setError(`AI API Error: ${aiResponse.error}`);            setLoading(false);            return;          }        } catch (err) {          console.error('Error calling OpenAI API:', err);          setError('Failed to connect to AI service. Please check your API key.');          setLoading(false);          return;        }      }      // Use the fetchLivePropertyData function to get real-time data      console.log('Fetching property data with:', { searchTerm, location, propertyType, bedrooms });      const data = await fetchLivePropertyData(searchTerm || location, {        location,        propertyType,        bedrooms      });            setPropertyData(data);
     } catch (err) {
       setError('Failed to fetch property data. Please try again.');
       console.error('Error fetching property data:', err);
@@ -570,12 +533,7 @@ export default function PropertyLookupRefined() {
           </form>
         </div>
         
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600">
-            {error}
-          </div>
-        )}
+                {/* API Key Warning */}        {!isApiKeyConfigured && (          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">            <div className="flex items-center">              <div className="flex-shrink-0">                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />                </svg>              </div>              <div className="ml-3">                <h3 className="text-sm font-medium text-yellow-800">                  OpenAI API Key Required                </h3>                <div className="mt-2 text-sm text-yellow-700">                  <p>                    This application requires an OpenAI API key to access real-time property data and AI-powered insights.                     Please configure your API key in the{' '}                    <Link href="/settings" className="font-medium underline hover:text-yellow-600">                      Settings page                    </Link>{' '}                    to continue.                  </p>                </div>              </div>            </div>          </div>        )}        {/* Error Message */}        {error && (          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600">            {error}          </div>        )}
         
         {/* Loading Indicator */}
         {loading && (
