@@ -13,12 +13,8 @@ export default function ClientLayout({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState('');
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // Set client flag to true after hydration
-    setIsClient(true);
-    
     // Update current path when component mounts or URL changes
     if (typeof window !== 'undefined') {
       setCurrentPath(window.location.pathname);
@@ -46,20 +42,6 @@ export default function ClientLayout({
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
-
-  // Don't render anything until client-side hydration is complete
-  if (!isClient) {
-    return (
-      <div className="flex flex-col min-h-screen bg-anti-flash-white">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tuscany mx-auto mb-4"></div>
-            <p className="text-dubai-blue-700">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-screen bg-anti-flash-white">

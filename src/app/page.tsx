@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { FaHome, FaChartLine, FaBuilding, FaSearch, FaUsers, FaCog } from 'react-icons/fa';
 
 export default function Home() {
   return (
@@ -15,7 +14,7 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
             <div className="flex items-center mb-4">
               <div className="bg-beige p-3 rounded-full mr-4">
-                <FaSearch className="text-tuscany text-xl" />
+                <span className="text-tuscany text-xl">🔍</span>
               </div>
               <h2 className="text-xl font-bold text-dubai-blue-900">Property Lookup</h2>
             </div>
@@ -31,7 +30,7 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
             <div className="flex items-center mb-4">
               <div className="bg-beige p-3 rounded-full mr-4">
-                <FaHome className="text-tuscany text-xl" />
+                <span className="text-tuscany text-xl">🏠</span>
               </div>
               <h2 className="text-xl font-bold text-dubai-blue-900">Rental Analysis</h2>
             </div>
@@ -47,7 +46,7 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
             <div className="flex items-center mb-4">
               <div className="bg-beige p-3 rounded-full mr-4">
-                <FaBuilding className="text-tuscany text-xl" />
+                <span className="text-tuscany text-xl">🏢</span>
               </div>
               <h2 className="text-xl font-bold text-dubai-blue-900">Developer Analysis</h2>
             </div>
@@ -63,7 +62,7 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
             <div className="flex items-center mb-4">
               <div className="bg-beige p-3 rounded-full mr-4">
-                <FaUsers className="text-tuscany text-xl" />
+                <span className="text-tuscany text-xl">👥</span>
               </div>
               <h2 className="text-xl font-bold text-dubai-blue-900">Demographics</h2>
             </div>
@@ -79,7 +78,7 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
             <div className="flex items-center mb-4">
               <div className="bg-beige p-3 rounded-full mr-4">
-                <FaCog className="text-tuscany text-xl" />
+                <span className="text-tuscany text-xl">⚙️</span>
               </div>
               <h2 className="text-xl font-bold text-dubai-blue-900">Settings</h2>
             </div>
