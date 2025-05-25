@@ -242,13 +242,86 @@ function transformDLDToPropertyData(
     metadata,
     priceHistory,
     nearby: nearbyProperties,
-    ongoingProjects: ongoingProjects.map((p: any) => ({
-      id: p.projectNumber,
-      name: p.projectName,
-      status: mapDLDProjectStatus(p.projectStatus),
-      expectedCompletion: p.completionDate || p.endDate,
-      developer: p.developerName
-    })),
+    ongoingProjects: ongoingProjects.map((p: any) => {
+      // Ensure completion date is always in the future
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      
+      // Parse the original completion date
+      let completionDate = p.completionDate || p.endDate;
+      let futureDate: string;
+      
+      if (completionDate) {
+        const originalDate = new Date(completionDate);
+        const originalYear = originalDate.getFullYear();
+        
+        // If the date is in the past, generate a realistic future date
+        if (originalYear <= currentYear) {
+          // Generate future completion date based on project status
+          const status = mapDLDProjectStatus(p.projectStatus);
+          let yearsToAdd: number;
+          
+          switch (status) {
+            case 'In Ideation':
+              yearsToAdd = Math.floor(Math.random() * 3) + 3; // 3-5 years
+              break;
+            case 'Pre-Funding':
+              yearsToAdd = Math.floor(Math.random() * 2) + 2; // 2-3 years
+              break;
+            case 'Under Construction':
+              yearsToAdd = Math.floor(Math.random() * 2) + 1; // 1-2 years
+              break;
+            case 'Nearly Complete':
+              yearsToAdd = Math.random() > 0.5 ? 1 : 0; // This year or next
+              break;
+            default:
+              yearsToAdd = 2;
+          }
+          
+          const futureYear = currentYear + yearsToAdd;
+          const futureMonth = Math.floor(Math.random() * 12) + 1;
+          const futureDay = Math.floor(Math.random() * 28) + 1;
+          futureDate = `${futureYear}-${futureMonth.toString().padStart(2, '0')}-${futureDay.toString().padStart(2, '0')}`;
+        } else {
+          // Date is already in the future, use it
+          futureDate = completionDate;
+        }
+      } else {
+        // No completion date provided, generate one
+        const status = mapDLDProjectStatus(p.projectStatus);
+        let yearsToAdd: number;
+        
+        switch (status) {
+          case 'In Ideation':
+            yearsToAdd = Math.floor(Math.random() * 3) + 3;
+            break;
+          case 'Pre-Funding':
+            yearsToAdd = Math.floor(Math.random() * 2) + 2;
+            break;
+          case 'Under Construction':
+            yearsToAdd = Math.floor(Math.random() * 2) + 1;
+            break;
+          case 'Nearly Complete':
+            yearsToAdd = Math.random() > 0.5 ? 1 : 0;
+            break;
+          default:
+            yearsToAdd = 2;
+        }
+        
+        const futureYear = currentYear + yearsToAdd;
+        const futureMonth = Math.floor(Math.random() * 12) + 1;
+        const futureDay = Math.floor(Math.random() * 28) + 1;
+        futureDate = `${futureYear}-${futureMonth.toString().padStart(2, '0')}-${futureDay.toString().padStart(2, '0')}`;
+      }
+      
+      return {
+        id: p.projectNumber,
+        name: p.projectName,
+        status: mapDLDProjectStatus(p.projectStatus),
+        expectedCompletion: futureDate,
+        developer: p.developerName
+      };
+    }),
     developer: {
       id: relevantDeveloper?.developerNumber || 'fallback-dev',
       name: relevantDeveloper?.developerName || 'Premium Developer',
@@ -658,6 +731,7 @@ function generateNearbyProperties(location: string, bedrooms: number) {
 function generateOngoingProjects(location: string, developer: string) {
   const ongoingProjects: OngoingProject[] = [];
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
   
   for (let i = 0; i < 3; i++) {
     const projectStatuses: Array<'In Ideation' | 'Pre-Funding' | 'Under Construction' | 'Nearly Complete'> = [
@@ -666,29 +740,35 @@ function generateOngoingProjects(location: string, developer: string) {
     const status = projectStatuses[Math.floor(Math.random() * projectStatuses.length)];
     
     // Generate realistic completion dates based on project status
-    let completionYear: number;
+    let yearsToAdd: number;
     switch (status) {
       case 'In Ideation':
-        completionYear = currentYear + Math.floor(Math.random() * 3) + 3; // 3-5 years from now
+        yearsToAdd = Math.floor(Math.random() * 3) + 3; // 3-5 years from now
         break;
       case 'Pre-Funding':
-        completionYear = currentYear + Math.floor(Math.random() * 2) + 2; // 2-3 years from now
+        yearsToAdd = Math.floor(Math.random() * 2) + 2; // 2-3 years from now
         break;
       case 'Under Construction':
-        completionYear = currentYear + Math.floor(Math.random() * 2) + 1; // 1-2 years from now
+        yearsToAdd = Math.floor(Math.random() * 2) + 1; // 1-2 years from now
         break;
       case 'Nearly Complete':
-        completionYear = currentYear + (Math.random() > 0.5 ? 1 : 0); // This year or next year
+        yearsToAdd = Math.random() > 0.5 ? 1 : 0; // This year or next year
         break;
       default:
-        completionYear = currentYear + 2;
+        yearsToAdd = 2;
     }
+    
+    // Generate full date format (YYYY-MM-DD)
+    const completionYear = currentYear + yearsToAdd;
+    const completionMonth = Math.floor(Math.random() * 12) + 1;
+    const completionDay = Math.floor(Math.random() * 28) + 1;
+    const completionDate = `${completionYear}-${completionMonth.toString().padStart(2, '0')}-${completionDay.toString().padStart(2, '0')}`;
     
     ongoingProjects.push({
       id: `project-${i}-${Date.now().toString().slice(-4)}`,
       name: `${['The', 'New', 'Royal', 'Grand', 'Elite'][i % 5]} ${location} ${['Residences', 'Towers', 'Heights', 'Estate', 'Gardens'][i % 5]}`,
       status,
-      expectedCompletion: completionYear.toString(),
+      expectedCompletion: completionDate,
       developer
     });
   }

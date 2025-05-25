@@ -84,10 +84,38 @@ const safeGenerateContent = async (prompt: string): Promise<ApiResponse> => {
     // Always update the API key before making a request
     updateApiKey(apiKey);
     
+    // Get current date for context
+    const currentDate = new Date();
+    const currentDateString = currentDate.toLocaleDateString('en-AE', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'Asia/Dubai'
+    });
+    const currentTime = currentDate.toLocaleTimeString('en-AE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Dubai',
+      hour12: true
+    });
+    
     // Use retry mechanism for OpenAI API calls
     const completion = await withRetry(() => openai.chat.completions.create({
       messages: [
-        { role: 'system', content: 'You are a knowledgeable real estate market expert assistant specializing in Dubai property market with access to the latest 2025 data.' },
+        { 
+          role: 'system', 
+          content: `You are a knowledgeable real estate market expert assistant specializing in Dubai property market with access to the latest data. 
+          
+          IMPORTANT CONTEXT:
+          - Current Date: ${currentDateString}
+          - Current Time: ${currentTime} (Dubai Time, GMT+4)
+          - Current Year: ${currentDate.getFullYear()}
+          
+          When discussing project completion dates, upcoming developments, or future events, ensure all dates are AFTER the current date. Never suggest past dates as future or upcoming projects. All "upcoming" or "under construction" projects must have completion dates in ${currentDate.getFullYear()} or later.
+          
+          Always provide accurate, up-to-date information reflecting current market conditions as of ${currentDateString}.`
+        },
         { role: 'user', content: prompt }
       ],
       model: 'gpt-4-turbo',
@@ -127,12 +155,31 @@ export async function getPropertyInfo(criteria: PropertySearchCriteria): Promise
     
     updateApiKey(apiKey);
     
-    const systemPrompt = `You are a specialized Dubai property market intelligence AI with access to current (2024) real estate data.
-Your role is to provide accurate, detailed property information and analysis based on search criteria.
-Focus on delivering data-driven insights with specific price ranges, property details, market trends, and investment analysis.
-Always structure your response with clear sections including: Property Overview, Price Analysis, Market Trends, 
-Investment Potential, Location Analysis, and Recommendations.
-Ensure all information reflects current market conditions and cites specific properties and developments where possible.`;
+    // Get current date for context
+    const currentDate = new Date();
+    const currentDateString = currentDate.toLocaleDateString('en-AE', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'Asia/Dubai'
+    });
+    
+    const systemPrompt = `You are a specialized Dubai property market intelligence AI with access to current real estate data.
+    
+    IMPORTANT CONTEXT:
+    - Current Date: ${currentDateString}
+    - Current Year: ${currentDate.getFullYear()}
+    - Location: Dubai, UAE (GMT+4)
+    
+    Your role is to provide accurate, detailed property information and analysis based on search criteria.
+    Focus on delivering data-driven insights with specific price ranges, property details, market trends, and investment analysis.
+    Always structure your response with clear sections including: Property Overview, Price Analysis, Market Trends, 
+    Investment Potential, Location Analysis, and Recommendations.
+    
+    CRITICAL: When mentioning project completion dates, upcoming developments, or future events, ensure all dates are AFTER ${currentDateString}. Never suggest past dates as future or upcoming projects.
+    
+    Ensure all information reflects current market conditions as of ${currentDateString} and cites specific properties and developments where possible.`;
     
     // Construct the user prompt based on criteria
     let userPrompt = `I need detailed property information and analysis for Dubai`;

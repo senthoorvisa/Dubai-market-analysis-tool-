@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import RealTimeDateTime from './components/RealTimeDateTime';
 
 export default function Home() {
   return (
@@ -7,6 +8,9 @@ export default function Home() {
         <h1 className="text-4xl font-bold text-dubai-blue-900 mb-3">Dubai Real Estate Market Analysis</h1>
         <p className="text-dubai-blue-700 text-xl">Comprehensive tools for property market insights</p>
       </div>
+      
+      {/* Real-time Date/Time Component */}
+      <RealTimeDateTime />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Property Lookup */}
