@@ -173,7 +173,37 @@ export default function PropertyLookupRefined() {
   const [chartZoom, setChartZoom] = useState<{startIndex: number, endIndex: number} | null>(null);
   const [developerDetailsExpanded, setDeveloperDetailsExpanded] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-    const [fetchingPrice, setFetchingPrice] = useState(false);  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);  // Check API key configuration on component mount  useEffect(() => {    const checkApiKey = () => {      const apiKey = apiKeyService.getStoredApiKey();      setIsApiKeyConfigured(!!apiKey);    };        checkApiKey();        // Check periodically in case user configures API key in another tab    const interval = setInterval(checkApiKey, 5000);    return () => clearInterval(interval);  }, []);    // Format currency
+  const [fetchingPrice, setFetchingPrice] = useState(false);
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
+
+  // Check API key configuration on component mount
+  useEffect(() => {
+    const checkApiKey = () => {
+      // First, try to initialize with default key
+      try {
+        apiKeyService.initializeWithDefaultKey();
+      } catch (error) {
+        console.error('Failed to initialize default API key:', error);
+      }
+      
+      // Then check if API key is available
+      const apiKey = apiKeyService.getStoredApiKey();
+      console.log('API Key check:', {
+        hasApiKey: !!apiKey,
+        keyLength: apiKey?.length || 0,
+        keyPrefix: apiKey?.substring(0, 10) || 'none'
+      });
+      setIsApiKeyConfigured(!!apiKey);
+    };
+    
+    checkApiKey();
+    
+    // Check periodically in case user configures API key in another tab
+    const interval = setInterval(checkApiKey, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format currency
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-AE', {
       style: 'currency',
@@ -200,7 +230,56 @@ export default function PropertyLookupRefined() {
     setError('');
     setPropertyData(null);
     
-    try {      // Check if API key is configured - REQUIRED for data access      const apiKey = apiKeyService.getStoredApiKey();            if (!apiKey) {        setError('OpenAI API key is required to access property data. Please configure your API key in the settings page to continue.');        setLoading(false);        return;      }            console.log('API Key configured:', !!apiKey);      console.log('Search parameters:', { searchTerm, location, propertyType, bedrooms });      // Get AI-powered information about this property if filters are set      if (location && propertyType && bedrooms) {        const criteria: PropertySearchCriteria = {          location,          propertyType,           bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)        };                try {          const aiResponse = await getPropertyInfo(criteria);                    if (!aiResponse.success) {            console.error('Error getting AI property info:', aiResponse.error);            setError(`AI API Error: ${aiResponse.error}`);            setLoading(false);            return;          }        } catch (err) {          console.error('Error calling OpenAI API:', err);          setError('Failed to connect to AI service. Please check your API key.');          setLoading(false);          return;        }      }      // Use the fetchLivePropertyData function to get real-time data      console.log('Fetching property data with:', { searchTerm, location, propertyType, bedrooms });      const data = await fetchLivePropertyData(searchTerm || location, {        location,        propertyType,        bedrooms      });            setPropertyData(data);
+    try {
+      // Ensure API key is initialized
+      apiKeyService.initializeWithDefaultKey();
+      
+      // Check if API key is configured - REQUIRED for data access
+      const apiKey = apiKeyService.getStoredApiKey();
+      
+      if (!apiKey) {
+        setError('OpenAI API key is required to access property data. Please configure your API key in the settings page to continue.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('API Key configured:', !!apiKey);
+      console.log('Search parameters:', { searchTerm, location, propertyType, bedrooms });
+      
+      // Get AI-powered information about this property if filters are set
+      if (location && propertyType && bedrooms) {
+        const criteria: PropertySearchCriteria = {
+          location,
+          propertyType, 
+          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+        };
+        
+        try {
+          const aiResponse = await getPropertyInfo(criteria);
+          
+          if (!aiResponse.success) {
+            console.error('Error getting AI property info:', aiResponse.error);
+            setError(`AI API Error: ${aiResponse.error}`);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('Error calling OpenAI API:', err);
+          setError('Failed to connect to AI service. Please check your API key.');
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Use the fetchLivePropertyData function to get real-time data
+      console.log('Fetching property data with:', { searchTerm, location, propertyType, bedrooms });
+      const data = await fetchLivePropertyData(searchTerm || location, {
+        location,
+        propertyType,
+        bedrooms
+      });
+      
+      setPropertyData(data);
     } catch (err) {
       setError('Failed to fetch property data. Please try again.');
       console.error('Error fetching property data:', err);
