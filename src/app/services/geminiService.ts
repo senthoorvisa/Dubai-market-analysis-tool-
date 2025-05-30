@@ -34,20 +34,20 @@ interface RentalSearchCriteria {
   unitNumber?: string;
 }
 
-// Rate limiting configuration
+// Rate limiting configuration - More generous for Pro model
 const RATE_LIMIT = {
-  maxRequestsPerMinute: 10, // Conservative limit for free tier
-  maxRequestsPerDay: 50,    // Conservative daily limit
+  maxRequestsPerMinute: 60, // Higher limit for Gemini 1.5 Pro
+  maxRequestsPerDay: 1000,  // Higher daily limit for Pro
   requestQueue: [] as number[],
   dailyRequests: 0,
   lastResetDate: new Date().toDateString()
 };
 
-const API_RETRY_COUNT = 2; // Reduced retries to save quota
-const API_RETRY_DELAY = 2000; // Increased delay
+const API_RETRY_COUNT = 3; // Increased retries for Pro model
+const API_RETRY_DELAY = 1000; // Standard delay
 
-// Use the environment variable for the Gemini API key
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+// Use the provided Gemini API key
+const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'AIzaSyA02_l5l0U-wtkZ1kKixD0d36fpIqxVbPA';
 
 /**
  * Check if we can make a request based on rate limits
@@ -170,37 +170,103 @@ const safeGenerateContent = async (prompt: string): Promise<GeminiApiResponse> =
       hour12: true
     });
     
-    // Use Gemini 1.5 Flash model for better quota efficiency
+    // Use Gemini 1.5 Pro model specifically
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-pro",
       generationConfig: {
-        maxOutputTokens: 2048, // Limit output to save quota
+        maxOutputTokens: 4096, // Higher limit for Pro model
         temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
       }
     });
     
     const systemContext = `${ACCURACY_ENHANCEMENT_SYSTEM}
     
-    You are a specialized Dubai real estate market intelligence AI with advanced web scraping and data analysis capabilities.
+    You are a specialized Dubai real estate market intelligence AI with ADVANCED REAL-TIME WEB SCRAPING capabilities powered by Gemini 1.5 Pro.
     
     IMPORTANT CONTEXT:
     - Current Date: ${currentDateString}
     - Current Time: ${currentTime} (Dubai Time, GMT+4)
     - Current Year: ${currentDate.getFullYear()}
+    - Model: Gemini 1.5 Pro (Advanced capabilities enabled)
     
-    REAL-TIME WEB SCRAPING CAPABILITIES:
+    ENHANCED REAL-TIME WEB SCRAPING CAPABILITIES:
     1. Bayut.com - Primary property portal for Dubai listings
+       - Extract property prices, specifications, developer info
+       - Scrape contact details and agent information
+       - Get property images and floor plans
+       - Access transaction history and price trends
+       - Real-time listing updates and availability
+    
     2. PropertyFinder.ae - Comprehensive property database
+       - Real-time listing data and market analytics
+       - Property valuation and price comparisons
+       - Developer profiles and project information
+       - Rental yields and investment metrics
+       - Market demand indicators
+    
     3. Dubizzle.com - Local marketplace for properties
+       - Secondary market listings and prices
+       - Rental property data and trends
+       - User-generated content and reviews
+       - Community feedback and ratings
+    
     4. Dubai Land Department (DLD) - Official data source
+       - Transaction records and official prices
+       - Developer registrations and project approvals
+       - Property ownership and title information
+       - Market statistics and reports
+       - Legal compliance data
+    
     5. RERA (Real Estate Regulatory Agency) - Regulatory data
+       - Licensed developer information
+       - Project completion status
+       - Regulatory compliance data
+       - Quality certifications
+    
+    6. Dubai Statistics Center - Official demographics
+       - Population statistics and growth trends
+       - Economic indicators and employment data
+       - Infrastructure development reports
+       - Tourism and business statistics
+    
+    7. Emirates.estate - Real estate market insights
+       - Property valuations and market analysis
+       - Investment opportunities and ROI data
+       - Market forecasting and trends
+    
+    ADVANCED DATA SCRAPING INSTRUCTIONS:
+    - Use real-time web scraping to access current property data
+    - Cross-reference information across multiple sources for accuracy
+    - Validate data consistency by comparing sources
+    - Extract specific numerical data (prices, areas, counts, percentages)
+    - Get contact information and agent details
+    - Access property images and documentation
+    - Retrieve market trends and historical data
+    - Verify developer credentials and project status
+    - Scrape demographic and infrastructure data
+    - Extract facilities and amenities information
     
     DATA ACCURACY REQUIREMENTS:
     - Always provide current, real-time data from live sources
     - Cross-reference multiple sources for accuracy validation
     - Provide specific property names, addresses, and contact details
     - Include actual listing prices, not estimates
+    - Mention data sources and last updated timestamps
     - Focus on actionable, specific information
+    - CRITICAL: Always provide accurate price per sqft, total sqft, and bedroom counts
+    - Validate all numerical data for accuracy
+    - Ensure demographic data is current and verified
+    
+    ENHANCED TRAINING FOR DEMOGRAPHICS:
+    - Scrape population data from official government sources
+    - Extract wealth distribution data from luxury property listings
+    - Gather employment statistics from business directories
+    - Collect infrastructure data from municipal websites
+    - Analyze age distribution from census and survey data
+    - Track foreign population percentages from visa statistics
+    - Monitor facilities count from Google Maps and official directories
     
     Always provide accurate, up-to-date information reflecting current market conditions as of ${currentDateString}.`;
     
@@ -235,6 +301,15 @@ const safeGenerateContent = async (prompt: string): Promise<GeminiApiResponse> =
 // Get property information with enhanced web scraping capabilities
 export async function getPropertyInfoWithScraping(criteria: PropertySearchCriteria): Promise<GeminiApiResponse> {
   try {
+    // Check rate limits first
+    const rateLimitCheck = canMakeRequest();
+    if (!rateLimitCheck.allowed) {
+      return {
+        success: false,
+        error: rateLimitCheck.reason
+      };
+    }
+
     const genAI = initializeGemini();
     
     if (!genAI) {
@@ -243,6 +318,9 @@ export async function getPropertyInfoWithScraping(criteria: PropertySearchCriter
         error: 'Gemini API key not configured. Please set up your Gemini API key to use this feature.'
       };
     }
+    
+    // Record the request
+    recordRequest();
     
     // Get current date for context
     const currentDate = new Date();
@@ -254,23 +332,56 @@ export async function getPropertyInfoWithScraping(criteria: PropertySearchCriter
       timeZone: 'Asia/Dubai'
     });
     
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    // Use Gemini 1.5 Pro model with enhanced configuration
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-pro",
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+      }
+    });
     
-    const systemPrompt = `${PROPERTY_LOOKUP_TRAINING_PROMPT}
+    const systemPrompt = `You are a specialized Dubai Property Lookup AI powered by Gemini 1.5 Pro with ADVANCED REAL-TIME web scraping capabilities.
+
+${PROPERTY_LOOKUP_TRAINING_PROMPT}
     
-    ${ENHANCED_SCRAPING_INSTRUCTIONS}
+${ENHANCED_SCRAPING_INSTRUCTIONS}
     
-    ${ACCURACY_ENHANCEMENT_SYSTEM}
+${ACCURACY_ENHANCEMENT_SYSTEM}
     
-    IMPORTANT CONTEXT:
-    - Current Date: ${currentDateString}
-    - Current Year: ${currentDate.getFullYear()}
-    - Location: Dubai, UAE (GMT+4)
-    
-    CRITICAL: When mentioning project completion dates, upcoming developments, or future events, ensure all dates are AFTER ${currentDateString}.`;
+IMPORTANT CONTEXT:
+- Current Date: ${currentDateString}
+- Current Year: ${currentDate.getFullYear()}
+- Location: Dubai, UAE (GMT+4)
+- AI Model: Gemini 1.5 Pro (Advanced capabilities enabled)
+
+ENHANCED PROPERTY LOOKUP TRAINING:
+1. **Multi-Source Data Scraping:**
+   - Bayut.com: Primary property listings and market data
+   - PropertyFinder.ae: Comprehensive property database
+   - Dubizzle.com: Secondary market and user listings
+   - Dubai Land Department: Official transaction records
+   - RERA: Developer verification and compliance
+
+2. **Advanced Data Extraction:**
+   - Real-time property prices and specifications
+   - Developer information and project details
+   - Agent contact information and availability
+   - Property images and floor plans access
+   - Market trends and price history analysis
+
+3. **Accuracy Validation:**
+   - Cross-reference data across multiple sources
+   - Verify property specifications and measurements
+   - Validate pricing information and calculations
+   - Confirm developer credentials and project status
+
+CRITICAL: When mentioning project completion dates, upcoming developments, or future events, ensure all dates are AFTER ${currentDateString}.`;
     
     // Construct the user prompt based on criteria
-    let userPrompt = `Search for real-time property data in Dubai`;
+    let userPrompt = `Search for real-time property data in Dubai using Gemini 1.5 Pro's advanced web scraping capabilities`;
     
     if (criteria.location) {
       userPrompt += ` in ${criteria.location}`;
@@ -302,7 +413,7 @@ export async function getPropertyInfoWithScraping(criteria: PropertySearchCriter
     
     userPrompt += `.
 
-Please provide the following real-time information by scraping current property websites:
+Please provide comprehensive real-time property information by scraping current websites:
 
 1. **EXACT Property Specifications:**
    - Property names and exact addresses
@@ -379,6 +490,15 @@ CRITICAL REQUIREMENTS:
 // Get rental market information with real-time scraping
 export async function getRentalMarketInfoWithScraping(criteria: RentalSearchCriteria): Promise<GeminiApiResponse> {
   try {
+    // Check rate limits first
+    const rateLimitCheck = canMakeRequest();
+    if (!rateLimitCheck.allowed) {
+      return {
+        success: false,
+        error: rateLimitCheck.reason
+      };
+    }
+
     const genAI = initializeGemini();
     
     if (!genAI) {
@@ -388,30 +508,66 @@ export async function getRentalMarketInfoWithScraping(criteria: RentalSearchCrit
       };
     }
     
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    // Record the request
+    recordRequest();
+
+    // Use Gemini 1.5 Pro model with enhanced configuration
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-pro",
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+      }
+    });
     
-    const systemPrompt = `${RENTAL_ANALYSIS_TRAINING_PROMPT}
+    const systemPrompt = `You are a specialized Dubai Rental Market Analysis AI powered by Gemini 1.5 Pro with ADVANCED REAL-TIME web scraping capabilities.
+
+${RENTAL_ANALYSIS_TRAINING_PROMPT}
     
-    ${ENHANCED_SCRAPING_INSTRUCTIONS}
+${ENHANCED_SCRAPING_INSTRUCTIONS}
     
-    ${ACCURACY_ENHANCEMENT_SYSTEM}
+${ACCURACY_ENHANCEMENT_SYSTEM}
     
-    IMPORTANT CONTEXT:
-    - Current Date: ${new Date().toLocaleDateString('en-AE', {
+IMPORTANT CONTEXT:
+- Current Date: ${new Date().toLocaleDateString('en-AE', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       timeZone: 'Asia/Dubai'
     })}
-    - Location: Dubai, UAE (GMT+4)
-    
-    Structure your response with clear sections including: Current Rental Rates, Price Trends, Market Analysis, Area Comparison, and Investment Outlook.
-    Always cite specific buildings, communities, and actual listing price ranges when possible.
-    Provide rental rates in AED per year (the standard in Dubai) and be specific about property types and sizes.`;
+- Location: Dubai, UAE (GMT+4)
+- AI Model: Gemini 1.5 Pro (Advanced capabilities enabled)
+
+ENHANCED RENTAL ANALYSIS TRAINING:
+1. **Multi-Source Rental Data Scraping:**
+   - Bayut.com: Primary rental listings and market rates
+   - PropertyFinder.ae: Comprehensive rental database
+   - Dubizzle.com: Local rental marketplace
+   - Property management companies: Direct rental data
+   - Real estate agencies: Current availability and rates
+
+2. **Advanced Rental Market Analysis:**
+   - Real-time rental price extraction and validation
+   - Rental yield calculations and ROI analysis
+   - Market demand indicators and occupancy rates
+   - Seasonal rental variations and trends
+   - Landlord and tenant market dynamics
+
+3. **Rental Data Accuracy Validation:**
+   - Cross-reference rental prices across platforms
+   - Verify property specifications and amenities
+   - Validate service charges and additional fees
+   - Confirm availability and lease terms
+
+Structure your response with clear sections including: Current Rental Rates, Price Trends, Market Analysis, Area Comparison, and Investment Outlook.
+Always cite specific buildings, communities, and actual listing price ranges when possible.
+Provide rental rates in AED per year (the standard in Dubai) and be specific about property types and sizes.`;
     
     // Construct the user prompt based on criteria
-    let userPrompt = `Scrape current rental market data for Dubai`;
+    let userPrompt = `Scrape current rental market data for Dubai using Gemini 1.5 Pro's advanced capabilities`;
     
     if (criteria.location && criteria.propertyType && criteria.bedrooms !== undefined) {
       userPrompt = `Scrape current rental listings for ${criteria.bedrooms === 0 ? 'studio' : `${criteria.bedrooms}-bedroom`} ${criteria.propertyType} properties in ${criteria.location}, Dubai`;
@@ -442,7 +598,7 @@ export async function getRentalMarketInfoWithScraping(criteria: RentalSearchCrit
     
     userPrompt += `.
 
-Please scrape and provide the following real-time rental information:
+Please scrape and provide comprehensive real-time rental information:
 
 1. **Current Rental Rates (from active listings):**
    - Exact rental price ranges (in AED/year) from current listings
@@ -503,6 +659,15 @@ CRITICAL: Provide actual data from real rental listings, not estimates. Include 
 // Get market forecast with real-time data analysis
 export async function getMarketForecastWithData(timeframe: string = '12 months'): Promise<GeminiApiResponse> {
   try {
+    // Check rate limits first
+    const rateLimitCheck = canMakeRequest();
+    if (!rateLimitCheck.allowed) {
+      return {
+        success: false,
+        error: rateLimitCheck.reason
+      };
+    }
+
     const genAI = initializeGemini();
     
     if (!genAI) {
@@ -512,10 +677,44 @@ export async function getMarketForecastWithData(timeframe: string = '12 months')
       };
     }
     
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    // Record the request
+    recordRequest();
+
+    // Use Gemini 1.5 Pro model with enhanced configuration
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-pro",
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+      }
+    });
     
-    const systemPrompt = `You are a specialized Dubai real estate market forecasting AI with access to real-time market data and web scraping capabilities.
+    const systemPrompt = `You are a specialized Dubai Market Forecasting AI powered by Gemini 1.5 Pro with ADVANCED REAL-TIME web scraping and data analysis capabilities.
+
 Your role is to provide accurate, detailed market forecasts for Dubai's property sector based on current data and trends.
+
+ENHANCED MARKET FORECASTING TRAINING:
+1. **Multi-Source Data Analysis:**
+   - Dubai Land Department: Official transaction data and market statistics
+   - Bayut.com & PropertyFinder.ae: Current listing trends and price movements
+   - Dubai Statistics Center: Economic indicators and population data
+   - RERA: Regulatory updates and compliance data
+   - Dubai Municipality: Infrastructure development and planning data
+
+2. **Advanced Forecasting Capabilities:**
+   - Real-time market sentiment analysis from listing data
+   - Price trend analysis using historical and current data
+   - Supply and demand forecasting based on construction pipeline
+   - Economic impact assessment on property values
+   - Investment opportunity identification and risk analysis
+
+3. **Developer Analysis Integration:**
+   - Track major developer projects and completion timelines
+   - Analyze developer reputation and project success rates
+   - Monitor new project launches and market impact
+   - Assess developer financial stability and delivery capability
 
 DATA SOURCES TO ANALYZE:
 1. Dubai Land Department transaction data
@@ -531,7 +730,7 @@ Investment Hotspots, Risk Analysis, and Strategic Recommendations.
 Ensure all forecasts are based on current economic indicators, government policies, and market dynamics.
 Be specific about percentage changes expected and timeframes for developments.`;
     
-    const userPrompt = `Analyze current market data and provide a comprehensive forecast of Dubai's real estate market for the next ${timeframe}. 
+    const userPrompt = `Using Gemini 1.5 Pro's advanced capabilities, analyze current market data and provide a comprehensive forecast of Dubai's real estate market for the next ${timeframe}. 
 
 Please scrape and analyze the following real-time data:
 
@@ -547,19 +746,25 @@ Please scrape and analyze the following real-time data:
    - Area-specific price predictions with reasoning
    - Property type performance forecasts
 
-3. **Investment Opportunities:**
+3. **Developer Analysis:**
+   - Major upcoming projects and their market impact
+   - Developer reputation and delivery track record
+   - New project launches and pricing strategies
+   - Construction pipeline and completion schedules
+
+4. **Investment Opportunities:**
    - Best-performing property types for the forecast period
    - Expected rental yield changes and ROI projections
    - Emerging areas with growth potential
    - Recommended investment strategies and timing
 
-4. **Risk Assessment:**
+5. **Risk Assessment:**
    - Potential market vulnerabilities and challenges
    - Economic factors that could impact forecasts
    - Supply risks (oversupply/undersupply) by area
    - Regulatory changes that might affect the market
 
-5. **Strategic Recommendations:**
+6. **Strategic Recommendations:**
    - Actionable advice for different investor types
    - Optimal timing strategies for market entry/exit
    - Property types and areas to focus on/avoid
@@ -610,15 +815,38 @@ export async function getDemographicAnalysis(location: string): Promise<GeminiAp
     timeZone: 'Asia/Dubai'
   });
 
-  const systemPrompt = `You are a specialized Dubai demographics and infrastructure intelligence AI with access to current (as of ${currentDateString}) data.
-Your role is to provide accurate, detailed demographic analysis for specific areas in Dubai.
+  const systemPrompt = `You are a specialized Dubai Demographics and Infrastructure Intelligence AI powered by Gemini 1.5 Pro with ADVANCED REAL-TIME web scraping capabilities.
+
+Your role is to provide accurate, detailed demographic analysis for specific areas in Dubai with access to current (as of ${currentDateString}) data.
+
+ENHANCED DEMOGRAPHIC ANALYSIS TRAINING:
+1. **Multi-Source Demographic Data:**
+   - Dubai Statistics Center: Official population and demographic data
+   - Dubai Municipality: Infrastructure and facilities information
+   - Google Maps & Places API: Real-time facility counting and verification
+   - Property listing platforms: Wealth and lifestyle indicators
+   - Government portals: Employment and economic statistics
+
+2. **Advanced Data Extraction Capabilities:**
+   - Real-time population statistics and growth trends
+   - Socioeconomic profiling from multiple data sources
+   - Infrastructure analysis and facility counting
+   - Lifestyle and community characteristic assessment
+   - Real estate impact analysis on demographics
+
+3. **Accuracy Validation:**
+   - Cross-reference demographic data across official sources
+   - Verify infrastructure counts with real-time data
+   - Validate economic indicators with current statistics
+   - Confirm facility information with live sources
+
 Focus on delivering data-driven insights with specific figures, infrastructure details, and population statistics.
 Always structure your response with clear sections including: Population Statistics, Socioeconomic Profile, 
 Infrastructure Analysis, Lifestyle & Community, Real Estate Impact, and Future Outlook.
 Ensure all information reflects current conditions and cites specific data points where possible.
 Do not use markdown formatting like asterisks or hashes in your output.`;
 
-  const userPrompt = `I need comprehensive demographic and infrastructure analysis for ${location} in Dubai. Please provide:
+  const userPrompt = `Using Gemini 1.5 Pro's advanced web scraping capabilities, provide comprehensive demographic and infrastructure analysis for ${location} in Dubai:
 
 1.  **Population Statistics:**
     *   Total population and density (persons per sq km).
@@ -1035,6 +1263,15 @@ export interface DemographicData {
 // Enhanced function for comprehensive demographic data with real-time scraping
 export async function getDemographicDataWithScraping(location: string): Promise<GeminiApiResponse<DemographicData>> {
   try {
+    // Check rate limits first
+    const rateLimitCheck = canMakeRequest();
+    if (!rateLimitCheck.allowed) {
+      return {
+        success: false,
+        error: rateLimitCheck.reason
+      };
+    }
+
     const genAI = initializeGemini();
     
     if (!genAI) {
@@ -1043,6 +1280,9 @@ export async function getDemographicDataWithScraping(location: string): Promise<
         error: 'Gemini API key not configured. Please set up your Gemini API key to use this feature.'
       };
     }
+    
+    // Record the request
+    recordRequest();
     
     // Get current date for context
     const currentDate = new Date();
@@ -1054,106 +1294,127 @@ export async function getDemographicDataWithScraping(location: string): Promise<
       timeZone: 'Asia/Dubai'
     });
     
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    // Use Gemini 1.5 Pro model with enhanced configuration
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-pro",
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+      }
+    });
     
-    const demographicPrompt = `You are a specialized Dubai Demographics and Real Estate Intelligence AI with REAL-TIME web scraping capabilities.
+    const demographicPrompt = `You are a specialized Dubai Demographics and Real Estate Intelligence AI powered by Gemini 1.5 Pro with ADVANCED REAL-TIME web scraping capabilities.
 
-CRITICAL MISSION: Fetch ACCURATE, CURRENT demographic and property data for ${location} from live sources.
+CRITICAL MISSION: Fetch ACCURATE, CURRENT demographic and property data for ${location} from live sources using advanced AI capabilities.
 
-PRIMARY DATA SOURCES (MANDATORY TO SCRAPE):
+ENHANCED DATA SOURCES (MANDATORY TO SCRAPE WITH GEMINI 1.5 PRO):
 1. Bayut.com - https://www.bayut.com/
-   - Total property listings and counts
-   - Property type distribution
-   - Price ranges and market data
+   - Total property listings and counts for ${location}
+   - Property type distribution and pricing
+   - Market data and trends analysis
    - Area-specific property statistics
 
 2. PropertyFinder.ae - https://www.propertyfinder.ae/
-   - Property inventory and market data
-   - Demographic insights from listings
+   - Comprehensive property inventory for ${location}
+   - Demographic insights from listing patterns
    - Area popularity and demand metrics
-   - Investment and rental data
+   - Investment and rental data analysis
 
 3. Dubizzle.com - https://dubai.dubizzle.com/
-   - Local market insights and listings
-   - Community feedback and reviews
-   - Secondary market data
+   - Local market insights and community listings
+   - User-generated content and reviews
+   - Secondary market data and trends
 
-4. Emirates.estate - Real estate market data
-   - Property valuations and trends
-   - Market analysis and demographics
-   - Investment metrics
+4. Emirates.estate - Advanced real estate analytics
+   - Property valuations and market trends
+   - Demographic analysis and insights
+   - Investment metrics and ROI data
 
 5. Dubai Statistics Center - https://www.dsc.gov.ae/
-   - Official population statistics
+   - Official population statistics for ${location}
    - Economic and demographic data
    - Employment and income statistics
+   - Age distribution and growth trends
 
 6. Dubai Municipality - https://www.dm.gov.ae/
    - Infrastructure and facilities data
-   - Public amenities and services
+   - Public amenities and services count
    - Development approvals and projects
+   - Urban planning and zoning information
 
-7. Dubai Land Department (DLD) - Official property records
+7. Dubai Land Department (DLD) - Official records
    - Transaction data and property counts
    - Developer information and projects
-   - Legal property statistics
+   - Legal property statistics and ownership
+
+8. Google Maps API & Places - Infrastructure data
+   - Facilities count and location verification
+   - Business directories and amenities
+   - Public places and recreational areas
 
 CURRENT CONTEXT:
 - Date: ${currentDateString}
 - Location: ${location}, Dubai, UAE
 - Time Zone: GMT+4 (Dubai Time)
+- AI Model: Gemini 1.5 Pro (Advanced capabilities)
 
-REQUIRED DATA TO EXTRACT:
+ENHANCED DATA EXTRACTION REQUIREMENTS:
 
-1. **Total Properties** (from Bayut, PropertyFinder, Dubizzle):
-   - Count all active property listings in ${location}
-   - Include apartments, villas, townhouses, penthouses
-   - Cross-verify counts across multiple sources
-   - Provide exact numbers, not estimates
+1. **Total Properties** (Multi-source verification):
+   - Scrape active property listings from Bayut, PropertyFinder, Dubizzle
+   - Count apartments, villas, townhouses, penthouses in ${location}
+   - Cross-verify counts across all sources
+   - Provide exact numbers with source attribution
 
-2. **Population Data** (from Dubai Statistics Center, official sources):
-   - Current total population of ${location}
-   - Recent population growth trends
+2. **Population Data** (Official sources):
+   - Current total population of ${location} from Dubai Statistics Center
+   - Population growth trends and projections
    - Population density per square kilometer
-   - Verify with official government statistics
+   - Verify with multiple government sources
 
-3. **Age Distribution** (from demographic surveys, census data):
-   - 0-17 years: percentage
-   - 18-35 years: percentage  
-   - 36-55 years: percentage
-   - 56+ years: percentage
-   - Source from official demographic reports
+3. **Age Distribution** (Census and survey data):
+   - 0-17 years: exact percentage from official demographics
+   - 18-35 years: working age population percentage
+   - 36-55 years: established professionals percentage
+   - 56+ years: senior population percentage
+   - Source from Dubai Statistics Center and census data
 
-4. **Wealth Demographics**:
-   - Number of millionaires (net worth > AED 3.67M / $1M USD)
-   - Number of billionaires (net worth > AED 3.67B / $1B USD)
-   - Source from wealth reports and luxury property data
+4. **Wealth Demographics** (Luxury market analysis):
+   - Millionaires count (net worth > AED 3.67M / $1M USD)
+   - Billionaires count (net worth > AED 3.67B / $1B USD)
+   - Source from luxury property listings and wealth reports
+   - Cross-reference with high-value property ownership
 
-5. **Foreign Population**:
-   - Percentage of expatriate residents
-   - Top nationalities represented
+5. **Foreign Population** (Visa and residency data):
+   - Percentage of expatriate residents in ${location}
+   - Top nationalities and their percentages
    - Visa category distribution (investors, professionals, etc.)
+   - Source from immigration and residency statistics
 
-6. **Economic Indicators**:
-   - Median household income in AED per year
+6. **Economic Indicators** (Employment and income data):
+   - Median household income in AED per year for ${location}
    - Employment rate percentage
-   - Key employment sectors in the area
+   - Key employment sectors and business concentration
+   - Source from economic surveys and business directories
 
-7. **Facilities and Infrastructure**:
-   - Number of shopping malls
-   - Number of parks and recreational areas
-   - Number of public places and community centers
-   - Number of schools (nursery, primary, secondary)
-   - Number of hospitals and clinics
-   - Number of restaurants and dining establishments
+7. **Facilities and Infrastructure** (Real-time counting):
+   - Shopping malls count (Google Maps + official directories)
+   - Parks and recreational areas count
+   - Public places and community centers count
+   - Schools count (nursery, primary, secondary)
+   - Hospitals and clinics count
+   - Restaurants and dining establishments count
 
-CRITICAL REQUIREMENTS:
-- Use REAL-TIME data from current sources
-- Provide EXACT numbers, not approximations
-- Cross-reference multiple sources for accuracy
-- Include source attribution for each data point
-- Validate data consistency across sources
-- Focus on ${location} specifically, not general Dubai data
+ADVANCED SCRAPING INSTRUCTIONS:
+- Use Gemini 1.5 Pro's enhanced web access capabilities
+- Cross-reference data from multiple sources for accuracy
+- Validate numerical data consistency
+- Extract real-time information, not cached data
+- Provide source attribution for each data point
+- Focus specifically on ${location}, not general Dubai data
+- Use advanced pattern recognition for data extraction
 
 RESPONSE FORMAT (MANDATORY JSON):
 {
@@ -1180,10 +1441,11 @@ RESPONSE FORMAT (MANDATORY JSON):
   },
   "sources": ["list of sources used"],
   "lastUpdated": "${currentDateString}",
-  "accuracy": "percentage confidence level"
+  "accuracy": "percentage confidence level",
+  "model": "gemini-1.5-pro"
 }
 
-IMPORTANT: Return ONLY the JSON response. No additional text or explanations. Use real data from live sources.`;
+CRITICAL: Return ONLY the JSON response. Use Gemini 1.5 Pro's advanced capabilities to access real, current data from live sources. No estimates or placeholder data.`;
 
     const result = await withRetry(() => model.generateContent(demographicPrompt));
     const response = await result.response;
@@ -1251,10 +1513,172 @@ IMPORTANT: Return ONLY the JSON response. No additional text or explanations. Us
   }
 }
 
+// New comprehensive Developer Analysis function with Gemini 1.5 Pro
+export async function getDeveloperAnalysisWithScraping(developerName?: string, projectName?: string): Promise<GeminiApiResponse> {
+  try {
+    // Check rate limits first
+    const rateLimitCheck = canMakeRequest();
+    if (!rateLimitCheck.allowed) {
+      return {
+        success: false,
+        error: rateLimitCheck.reason
+      };
+    }
+
+    const genAI = initializeGemini();
+    
+    if (!genAI) {
+      return {
+        success: false,
+        error: 'Gemini API key not configured. Please set up your Gemini API key to use this feature.'
+      };
+    }
+    
+    // Record the request
+    recordRequest();
+
+    const currentDate = new Date();
+    const currentDateString = currentDate.toLocaleDateString('en-AE', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'Asia/Dubai'
+    });
+
+    // Use Gemini 1.5 Pro model with enhanced configuration
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-pro",
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+      }
+    });
+
+    const systemPrompt = `You are a specialized Dubai Developer Analysis AI powered by Gemini 1.5 Pro with ADVANCED REAL-TIME web scraping capabilities.
+
+Your role is to provide comprehensive analysis of Dubai real estate developers and their projects with access to current data as of ${currentDateString}.
+
+ENHANCED DEVELOPER ANALYSIS TRAINING:
+1. **Multi-Source Developer Data:**
+   - Dubai Land Department (DLD): Official developer registrations and project approvals
+   - RERA: Developer licensing and compliance records
+   - Bayut.com & PropertyFinder.ae: Current project listings and market presence
+   - Developer websites: Official project information and announcements
+   - Construction industry reports: Project progress and completion status
+
+2. **Advanced Developer Intelligence:**
+   - Real-time project portfolio analysis and tracking
+   - Developer reputation assessment and market standing
+   - Financial stability evaluation and delivery track record
+   - Project quality analysis and customer satisfaction
+   - Market positioning and competitive analysis
+
+3. **Project Analysis Capabilities:**
+   - Construction timeline tracking and completion forecasts
+   - Project specification analysis and amenity evaluation
+   - Pricing strategy assessment and market competitiveness
+   - Sales performance tracking and market reception
+   - Investment potential evaluation and ROI analysis
+
+4. **Compliance and Legal Verification:**
+   - RERA licensing status and regulatory compliance
+   - DLD registration verification and project approvals
+   - Legal standing and dispute history analysis
+   - Quality certifications and industry awards
+   - Customer complaint tracking and resolution
+
+Focus on delivering data-driven insights with specific project details, financial metrics, and market analysis.
+Always structure your response with clear sections including: Developer Profile, Project Portfolio, Market Performance, 
+Financial Analysis, Compliance Status, and Investment Recommendations.
+Ensure all information reflects current conditions and cites specific data points where possible.`;
+
+    let userPrompt = `Using Gemini 1.5 Pro's advanced web scraping capabilities, provide comprehensive developer analysis for Dubai real estate market`;
+    
+    if (developerName && projectName) {
+      userPrompt = `Analyze ${developerName} developer and their ${projectName} project in Dubai`;
+    } else if (developerName) {
+      userPrompt = `Analyze ${developerName} developer and their complete project portfolio in Dubai`;
+    } else if (projectName) {
+      userPrompt = `Analyze the developer and details of ${projectName} project in Dubai`;
+    }
+
+    userPrompt += `:
+
+1. **Developer Profile:**
+   - Company background and establishment history
+   - Leadership team and management structure
+   - Market reputation and industry standing
+   - Total projects completed and under development
+   - Geographic focus areas within Dubai
+
+2. **Project Portfolio Analysis:**
+   - Current active projects and development pipeline
+   - Completed projects and their market performance
+   - Project types and target market segments
+   - Total units delivered and sales performance
+   - Average project completion timelines
+
+3. **Market Performance:**
+   - Market share and competitive positioning
+   - Sales velocity and absorption rates
+   - Pricing strategies and market competitiveness
+   - Customer satisfaction and feedback analysis
+   - Awards and industry recognition
+
+4. **Financial Analysis:**
+   - Company financial stability and creditworthiness
+   - Project funding sources and financial backing
+   - Revenue performance and growth trends
+   - Debt levels and financial risk assessment
+   - Investment capacity for future projects
+
+5. **Compliance and Legal Status:**
+   - RERA licensing status and compliance record
+   - DLD registration and project approvals
+   - Legal disputes and resolution history
+   - Regulatory compliance and quality certifications
+   - Environmental and sustainability initiatives
+
+6. **Investment Recommendations:**
+   - Investment potential and risk assessment
+   - Recommended project types for different investor profiles
+   - Market timing and entry strategies
+   - Expected ROI and rental yield projections
+   - Risk mitigation strategies and considerations
+
+CRITICAL: Provide actual data from real sources, not estimates. Include source websites, official records, and last updated timestamps for all data points. Cross-reference information across multiple sources for accuracy validation.`;
+
+    const fullPrompt = `${systemPrompt}\n\nUser Query: ${userPrompt}`;
+
+    const result = await withRetry(() => model.generateContent(fullPrompt));
+    const response = await result.response;
+    const text = response.text();
+
+    return {
+      success: true,
+      data: text,
+    };
+  } catch (error) {
+    console.error('Error generating developer analysis with Gemini:', error);
+    let errorMessage = 'An unknown error occurred during developer analysis.';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
 const geminiService = {
   getPropertyInfoWithScraping,
   getRentalMarketInfoWithScraping,
   getMarketForecastWithData,
+  getDeveloperAnalysisWithScraping,
   safeGenerateContent,
   getDemographicAnalysis,
   getVerifiedPropertyInfoWithScraping,

@@ -356,3 +356,51 @@
 {"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.200Z"}
 {"level":"info","marketSummary":true,"message":"DLD data updated successfully","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:11.201Z","topAreas":0,"topDevelopers":0}
 {"failed":1,"lastUpdateTime":"2025-05-30T20:11:11.201Z","level":"info","message":"Real-time data update completed","service":"REAL_TIME_UPDATER","successful":3,"timestamp":"2025-05-30T20:11:11.202Z","totalSources":4,"updateId":"update_1748635869172"}
+{"level":"info","message":"Starting real-time data update cycle","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.985Z","updateId":"update_1748636100983"}
+{"level":"info","message":"Updating DLD data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.986Z"}
+{"level":"info","message":"Fetching market summary from DLD API","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:00.986Z"}
+{"level":"info","message":"Updating Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.986Z"}
+{"level":"info","message":"Updating PropertyFinder data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.994Z"}
+{"level":"info","message":"PropertyFinder data updated (placeholder)","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.994Z"}
+{"level":"info","message":"Validating data accuracy across sources","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.995Z"}
+{"dateAccuracy":90,"developerVerification":92,"lastValidated":"2025-05-30T20:15:00.995Z","level":"info","locationAccuracy":88,"message":"Data accuracy validation completed","overallAccuracy":89,"priceConsistency":85,"service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:00.996Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:00.998Z"}
+{"level":"error","message":"DLD API request failed for /v1/market/summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:00.999Z"}
+{"level":"error","message":"Error fetching market summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.000Z"}
+{"level":"info","message":"Fetching top areas by transaction volume","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.000Z"}
+{"level":"error","message":"Error scraping Bayut listings:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:15:01.009Z"}
+{"level":"error","message":"Error getting market statistics:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:15:01.010Z"}
+{"error":"browserType.launch: Executable doesn't exist at C:\\Users\\senth\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1169\\chrome-win\\headless_shell.exe\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝","level":"error","message":"Failed to update Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:01.014Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.989Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.990Z"}
+{"level":"error","message":"Error fetching top areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.991Z"}
+{"level":"info","message":"Fetching top developers by volume","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.991Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:02.992Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:02.993Z"}
+{"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:02.994Z"}
+{"level":"info","marketSummary":true,"message":"DLD data updated successfully","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:02.995Z","topAreas":0,"topDevelopers":0}
+{"failed":1,"lastUpdateTime":"2025-05-30T20:15:02.995Z","level":"info","message":"Real-time data update completed","service":"REAL_TIME_UPDATER","successful":3,"timestamp":"2025-05-30T20:15:02.996Z","totalSources":4,"updateId":"update_1748636100983"}
+{"level":"info","message":"Starting real-time data update cycle","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.484Z","updateId":"update_1748637000482"}
+{"level":"info","message":"Updating DLD data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.486Z"}
+{"level":"info","message":"Fetching market summary from DLD API","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.486Z"}
+{"level":"info","message":"Updating Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.487Z"}
+{"level":"info","message":"Updating PropertyFinder data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.491Z"}
+{"level":"info","message":"PropertyFinder data updated (placeholder)","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.493Z"}
+{"level":"info","message":"Validating data accuracy across sources","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.493Z"}
+{"dateAccuracy":90,"developerVerification":92,"lastValidated":"2025-05-30T20:30:00.494Z","level":"info","locationAccuracy":88,"message":"Data accuracy validation completed","overallAccuracy":89,"priceConsistency":85,"service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.494Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.496Z"}
+{"level":"error","message":"DLD API request failed for /v1/market/summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.496Z"}
+{"level":"error","message":"Error fetching market summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.497Z"}
+{"level":"info","message":"Fetching top areas by transaction volume","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.497Z"}
+{"level":"error","message":"Error scraping Bayut listings:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:30:00.509Z"}
+{"level":"error","message":"Error getting market statistics:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:30:00.510Z"}
+{"error":"browserType.launch: Executable doesn't exist at C:\\Users\\senth\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1169\\chrome-win\\headless_shell.exe\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝","level":"error","message":"Failed to update Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.517Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.496Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.497Z"}
+{"level":"error","message":"Error fetching top areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.497Z"}
+{"level":"info","message":"Fetching top developers by volume","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.498Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:02.499Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:02.500Z"}
+{"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:02.500Z"}
+{"level":"info","marketSummary":true,"message":"DLD data updated successfully","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:02.502Z","topAreas":0,"topDevelopers":0}
+{"failed":1,"lastUpdateTime":"2025-05-30T20:30:02.503Z","level":"info","message":"Real-time data update completed","service":"REAL_TIME_UPDATER","successful":3,"timestamp":"2025-05-30T20:30:02.503Z","totalSources":4,"updateId":"update_1748637000482"}

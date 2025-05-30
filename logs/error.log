@@ -133,3 +133,27 @@
 {"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.198Z"}
 {"level":"error","message":"DLD API request failed for /v1/analytics/top-developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.199Z"}
 {"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.200Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:00.998Z"}
+{"level":"error","message":"DLD API request failed for /v1/market/summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:00.999Z"}
+{"level":"error","message":"Error fetching market summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:00.999Z"}
+{"level":"error","message":"Error scraping Bayut listings:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:15:01.009Z"}
+{"level":"error","message":"Error getting market statistics:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:15:01.010Z"}
+{"error":"browserType.launch: Executable doesn't exist at C:\\Users\\senth\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1169\\chrome-win\\headless_shell.exe\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝","level":"error","message":"Failed to update Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:15:01.013Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.989Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.990Z"}
+{"level":"error","message":"Error fetching top areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:01.991Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:02.992Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:02.993Z"}
+{"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:15:02.994Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.496Z"}
+{"level":"error","message":"DLD API request failed for /v1/market/summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.496Z"}
+{"level":"error","message":"Error fetching market summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:00.497Z"}
+{"level":"error","message":"Error scraping Bayut listings:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:30:00.509Z"}
+{"level":"error","message":"Error getting market statistics:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:30:00.510Z"}
+{"error":"browserType.launch: Executable doesn't exist at C:\\Users\\senth\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1169\\chrome-win\\headless_shell.exe\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝","level":"error","message":"Failed to update Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:30:00.517Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.495Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.497Z"}
+{"level":"error","message":"Error fetching top areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:01.497Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:02.499Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:02.500Z"}
+{"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:30:02.500Z"}

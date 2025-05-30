@@ -14,7 +14,7 @@ export default function Home() {
       {/* Real-time Date/Time Component */}
       <RealTimeDateTime />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-24">
         {/* Property Lookup */}
         <Link href="/property-lookup" className="block">
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
@@ -63,7 +63,21 @@ export default function Home() {
           </div>
         </Link>
         
-        {/* Demographics Intelligence */}
+        {/* Market Forecast */}
+        <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
+          <div className="flex items-center mb-4">
+            <div className="bg-beige p-3 rounded-full mr-4">
+              <span className="text-tuscany text-xl">📈</span>
+            </div>
+            <h2 className="text-xl font-bold text-dubai-blue-900">Market Forecast</h2>
+          </div>
+          <p className="text-dubai-blue-700 mb-auto">AI-powered market predictions and investment insights based on current trends and economic indicators.</p>
+          <div className="mt-4 text-tuscany font-medium flex items-center">
+            Coming Soon <span className="ml-2">→</span>
+          </div>
+        </div>
+        
+        {/* Demographics Intelligence - Moved to position indicated by red mark */}
         <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
           <div className="flex items-center mb-4">
             <div className="bg-beige p-3 rounded-full mr-4">
@@ -76,20 +90,6 @@ export default function Home() {
             <DemographicsButton className="hover:underline">
               View Demographics <span className="ml-2">→</span>
             </DemographicsButton>
-          </div>
-        </div>
-        
-        {/* Market Forecast */}
-        <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
-          <div className="flex items-center mb-4">
-            <div className="bg-beige p-3 rounded-full mr-4">
-              <span className="text-tuscany text-xl">📈</span>
-            </div>
-            <h2 className="text-xl font-bold text-dubai-blue-900">Market Forecast</h2>
-          </div>
-          <p className="text-dubai-blue-700 mb-auto">AI-powered market predictions and investment insights based on current trends and economic indicators.</p>
-          <div className="mt-4 text-tuscany font-medium flex items-center">
-            Coming Soon <span className="ml-2">→</span>
           </div>
         </div>
         
@@ -110,8 +110,8 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Demographics Section */}
-      <div id="demographics-section" className="mt-16 border-t border-gray-200 pt-16">
+      {/* Demographics Section - Added more spacing to prevent overlay */}
+      <div id="demographics-section" className="mt-24 border-t border-gray-200 pt-20">
         <Demographics />
       </div>
     </div>
