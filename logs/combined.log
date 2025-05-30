@@ -324,3 +324,35 @@
 {"developerName":"list","error":"dataCollector.getLatestData is not a function","level":"error","message":"Error fetching developer details","service":"DEVELOPER_ROUTES","timestamp":"2025-05-30T20:04:14.971Z"}
 {"developerName":"list","level":"info","message":"Fetching developer details","service":"DEVELOPER_ROUTES","timestamp":"2025-05-30T20:07:16.672Z"}
 {"developerName":"list","error":"dataCollector.getLatestData is not a function","level":"error","message":"Error fetching developer details","service":"DEVELOPER_ROUTES","timestamp":"2025-05-30T20:07:16.679Z"}
+{"level":"warn","message":"Gemini client not available: GEMINI_API_KEY environment variable is required","service":"AI_ROUTES","timestamp":"2025-05-30T20:11:04.634Z"}
+{"level":"info","message":"Rental data scheduler started","nextRun":"2025-05-30T20:30:00.000Z","schedule":"Daily at 2:00 AM (Dubai Time)","service":"RENTAL_SCHEDULER","timestamp":"2025-05-30T20:11:09.151Z"}
+{"level":"info","message":"Developer analysis scheduler started","nextRun":"2025-05-31T21:30:00.000Z","schedule":"Weekly on Sundays at 3:00 AM (Dubai Time)","service":"DEVELOPER_SCHEDULER","timestamp":"2025-05-30T20:11:09.155Z"}
+{"level":"info","message":"✅ Started daily-demand-collection scheduler","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T20:11:09.159Z"}
+{"level":"info","message":"✅ Started weekly-demand-analysis scheduler","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T20:11:09.162Z"}
+{"level":"info","message":"✅ Started monthly-demographic-update scheduler","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T20:11:09.164Z"}
+{"level":"info","message":"🕐 Market Demand scheduler started successfully","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T20:11:09.165Z"}
+{"level":"info","message":"Starting real-time data updater","service":"REAL_TIME_UPDATER","sources":["bayut","propertyFinder","dubizzle","dld"],"timestamp":"2025-05-30T20:11:09.171Z","updateInterval":"15 minutes"}
+{"level":"info","message":"Starting real-time data update cycle","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.173Z","updateId":"update_1748635869172"}
+{"level":"info","message":"Updating DLD data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.175Z"}
+{"level":"info","message":"Fetching market summary from DLD API","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:09.178Z"}
+{"level":"info","message":"Updating Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.179Z"}
+{"level":"info","message":"Updating PropertyFinder data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.189Z"}
+{"level":"info","message":"PropertyFinder data updated (placeholder)","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.191Z"}
+{"level":"info","message":"Validating data accuracy across sources","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.192Z"}
+{"dateAccuracy":90,"developerVerification":92,"lastValidated":"2025-05-30T20:11:09.192Z","level":"info","locationAccuracy":88,"message":"Data accuracy validation completed","overallAccuracy":89,"priceConsistency":85,"service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.194Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:09.198Z"}
+{"level":"error","message":"DLD API request failed for /v1/market/summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:09.200Z"}
+{"level":"error","message":"Error fetching market summary:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:09.201Z"}
+{"level":"info","message":"Fetching top areas by transaction volume","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:09.204Z"}
+{"level":"error","message":"Error scraping Bayut listings:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:11:09.244Z"}
+{"level":"error","message":"Error getting market statistics:","name":"Error","service":"BAYUT_ENHANCED","timestamp":"2025-05-30T20:11:09.247Z"}
+{"error":"browserType.launch: Executable doesn't exist at C:\\Users\\senth\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1169\\chrome-win\\headless_shell.exe\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝","level":"error","message":"Failed to update Bayut data","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:09.251Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:10.183Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:10.184Z"}
+{"level":"error","message":"Error fetching top areas:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:10.185Z"}
+{"level":"info","message":"Fetching top developers by volume","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:10.188Z"}
+{"level":"error","message":"Failed to get DLD access token:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.198Z"}
+{"level":"error","message":"DLD API request failed for /v1/analytics/top-developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.199Z"}
+{"level":"error","message":"Error fetching top developers:","service":"DLD_CLIENT","timestamp":"2025-05-30T20:11:11.200Z"}
+{"level":"info","marketSummary":true,"message":"DLD data updated successfully","service":"REAL_TIME_UPDATER","timestamp":"2025-05-30T20:11:11.201Z","topAreas":0,"topDevelopers":0}
+{"failed":1,"lastUpdateTime":"2025-05-30T20:11:11.201Z","level":"info","message":"Real-time data update completed","service":"REAL_TIME_UPDATER","successful":3,"timestamp":"2025-05-30T20:11:11.202Z","totalSources":4,"updateId":"update_1748635869172"}
