@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import axios from 'axios';
 import { 
   FaArrowLeft, FaSearch, FaSpinner, FaHome, FaBed, FaBath, 
-  FaRulerCombined, FaBuilding, FaCalendarAlt, FaChartLine,
-  FaMapMarkerAlt, FaTag, FaExternalLinkAlt, FaChevronRight, FaChevronLeft,
+  FaBuilding, FaMapMarkerAlt, FaTag, FaExternalLinkAlt, FaChevronRight, FaChevronLeft,
   FaFilter, FaBrain
 } from 'react-icons/fa';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  Legend, ResponsiveContainer, ReferenceLine, BarChart, Bar
+  Legend, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import { getPropertyInfoWithScraping } from '../services/geminiService';
 import { fetchLivePropertyData } from './fetchLivePropertyData';
@@ -112,32 +110,9 @@ interface PropertySearchCriteria {
   location?: string;
   propertyType?: string;
   bedrooms?: number;
-  priceRange?: string;
-  amenities?: string[];
   floorNumber?: string;
   unitNumber?: string;
 }
-
-// Dubai locations for dropdown - ENSURE THIS BLOCK IS COMPLETELY DELETED
-/*
-const dubaiLocations = [
-  'Dubai Marina',
-  'Downtown Dubai',
-  'Palm Jumeirah',
-  'Jumeirah Beach Residence',
-  'Business Bay',
-  'Dubai Hills Estate',
-  'Jumeirah Lake Towers',
-  'Arabian Ranches',
-  'Mirdif',
-  'Damac Hills',
-  'Dubai Silicon Oasis',
-  'International City',
-  'Dubai Sports City',
-  'Emirates Hills',
-  'Jumeirah Village Circle'
-];
-*/
 
 // Property types for dropdown
 const propertyTypes = [
@@ -159,7 +134,6 @@ const bedroomOptions = ['Studio', '1', '2', '3', '4', '5+'];
 export default function PropertyLookupRefined() {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
-  // const [location, setLocation] = useState<string>(''); // ENSURE THIS LINE IS DELETED OR COMMENTED
   const [propertyType, setPropertyType] = useState<string>('');
   const [bedrooms, setBedrooms] = useState<string>('');
   const [floorNumber, setFloorNumber] = useState<string>('');
@@ -270,7 +244,6 @@ export default function PropertyLookupRefined() {
     if (!selectedProperty) return;
 
     setSearchTerm(selectedProperty.name); // Set search term to the selected nearby property's name
-    // setLocation(''); // REMOVED
     setPropertyType(
       selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
       selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :

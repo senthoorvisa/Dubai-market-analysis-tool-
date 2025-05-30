@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaCog, FaKey, FaChartBar, FaRobot, FaExclamationTriangle, FaInfoCircle, FaCheck, FaBrain } from 'react-icons/fa';
+import { FaCog, FaKey, FaChartBar, FaRobot, FaExclamationTriangle, FaInfoCircle, FaCheck, FaBrain, FaSpinner } from 'react-icons/fa';
 import Link from 'next/link';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -56,9 +56,10 @@ const UsageCard: React.FC<UsageCardProps> = ({ title, data, warningThreshold }) 
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('api-keys');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiCallCount, setGeminiCallCount] = useState(0);
   const currentGeminiModel = 'gemini-2.5-pro-latest';
-  const [isGeminiKeyConfigured, setIsGeminiKeyConfigured] = useState(true); // Always true since we have hardcoded key
+  const [isGeminiKeyConfigured, setIsGeminiKeyConfigured] = useState(false);
   const [testingGeminiKey, setTestingGeminiKey] = useState(false);
   const [geminiTestResult, setGeminiTestResult] = useState({ success: false, message: '' });
   
@@ -74,9 +75,16 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    // Load Gemini usage data from localStorage
+    // Load Gemini usage data and API key from localStorage
     if (typeof window !== 'undefined') {
-      // Estimate Gemini API calls
+      const storedApiKey = localStorage.getItem('geminiApiKey');
+      if (storedApiKey) {
+        setGeminiApiKey(storedApiKey);
+        setIsGeminiKeyConfigured(true);
+      } else {
+        setIsGeminiKeyConfigured(false);
+      }
+
       const geminiCallCountStr = localStorage.getItem('gemini_api_call_count');
       if (geminiCallCountStr) {
         setGeminiCallCount(parseInt(geminiCallCountStr, 10));
@@ -89,13 +97,14 @@ export default function SettingsPage() {
     setGeminiTestResult({ success: false, message: '' });
     
     try {
-      // Test the Gemini API key from the environment variable
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      // Test the Gemini API key from the input state
+      const apiKey = geminiApiKey;
       if (!apiKey) {
         setGeminiTestResult({
           success: false,
-          message: 'Gemini API key not found in environment variables. Please set NEXT_PUBLIC_GEMINI_API_KEY.'
+          message: 'Gemini API key not provided. Please enter your API key.'
         });
+        setIsGeminiKeyConfigured(false);
         setTestingGeminiKey(false);
         return;
       }
@@ -113,6 +122,8 @@ export default function SettingsPage() {
           success: true, 
           message: 'Gemini API key is working correctly! Ready for Dubai real estate analysis.' 
         });
+        localStorage.setItem('geminiApiKey', apiKey);
+        setIsGeminiKeyConfigured(true);
         
         // Increment Gemini API call counter
         const currentCount = parseInt(localStorage.getItem('gemini_api_call_count') || '0', 10);
@@ -121,17 +132,40 @@ export default function SettingsPage() {
       } else {
         setGeminiTestResult({ 
           success: false, 
-          message: 'Received an empty response. Please check the API configuration.' 
+          message: 'Received an empty response. Please check the API configuration and ensure your key is valid.' 
         });
+        setIsGeminiKeyConfigured(false);
       }
     } catch (error) {
       console.error('Error testing Gemini API key:', error);
       setGeminiTestResult({ 
         success: false, 
-        message: error instanceof Error ? error.message : 'Unknown error occurred' 
+        message: error instanceof Error ? error.message : 'Unknown error occurred. Please check your API key and network connection.' 
       });
+      setIsGeminiKeyConfigured(false);
     } finally {
       setTestingGeminiKey(false);
+    }
+  };
+
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGeminiApiKey(e.target.value);
+    // Optimistically set as not configured until tested or if field is cleared
+    if (!e.target.value) {
+      setIsGeminiKeyConfigured(false);
+      localStorage.removeItem('geminiApiKey'); // Remove from local storage if cleared
+    }
+  };
+
+  const handleSaveApiKey = () => {
+    if (geminiApiKey.trim()) {
+      localStorage.setItem('geminiApiKey', geminiApiKey.trim());
+      setIsGeminiKeyConfigured(true); // Assume configured, user can test
+      alert('API Key saved locally. Please test it to ensure it is working.');
+    } else {
+      alert('API Key cannot be empty.');
+      setIsGeminiKeyConfigured(false);
+      localStorage.removeItem('geminiApiKey');
     }
   };
 
@@ -186,65 +220,91 @@ export default function SettingsPage() {
               <h2 className="text-xl font-semibold mb-4">Gemini AI Configuration</h2>
               
               <div className="space-y-6 mb-8">
-                <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-4">
+                {/* API Key Input Section */}
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-md font-semibold mb-2 text-gray-700">Enter Your Gemini API Key</h3>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <input
+                      type="password"
+                      placeholder="Enter your Gemini API Key"
+                      value={geminiApiKey}
+                      onChange={handleApiKeyChange}
+                      className="flex-grow p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    />
+                    <button
+                      onClick={handleSaveApiKey}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+                      disabled={!geminiApiKey.trim()}
+                    >
+                      Save Key
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Your API key is stored locally in your browser. It is not sent to our servers.
+                  </p>
+                </div>
+
+                {/* Gemini API Status Section - Corrected syntax */}
+                <div className={`p-4 rounded-lg border ${isGeminiKeyConfigured ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-300'}`}>
                   <div className="flex items-start">
-                    <FaCheck className="text-green-600 mt-1 mr-2" />
+                    {isGeminiKeyConfigured ? (
+                      <FaCheck className="text-green-600 mt-1 mr-3 flex-shrink-0" size={20} />
+                    ) : (
+                      <FaExclamationTriangle className="text-yellow-500 mt-1 mr-3 flex-shrink-0" size={20} />
+                    )}
                     <div>
-                      <h3 className="font-medium">Gemini API Configured</h3>
-                      <p className="text-sm text-green-700 mt-1">
-                        Your Dubai real estate analysis tool is powered by Google Gemini for enhanced web scraping and accurate property data.
+                      <h3 className={`font-medium ${isGeminiKeyConfigured ? 'text-green-800' : 'text-yellow-800'}`}>
+                        {isGeminiKeyConfigured ? 'Gemini API Key Configured' : 'Gemini API Key Not Configured'}
+                      </h3>
+                      <p className={`text-sm mt-1 ${isGeminiKeyConfigured ? 'text-green-700' : 'text-yellow-700'}`}>
+                        {isGeminiKeyConfigured 
+                          ? 'Your Dubai real estate analysis tool is ready to be powered by Google Gemini. Test your key to ensure it\'s working correctly.'
+                          : 'Please enter your Gemini API key above and save it to enable AI-powered features. You can obtain a key from Google AI Studio.'}
                       </p>
                     </div>
                   </div>
                 </div>
               
-                {/* Gemini API Key Section */}
-                <div className="border border-gray-200 rounded-lg p-6">
-                  <h3 className="text-lg font-medium mb-3 flex items-center">
-                    <FaBrain className="mr-2 text-purple-600" />
-                    Google Gemini API Status
-                  </h3>
-                  
-                  <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-md">
-                    <p className="text-sm text-purple-700">
-                      <strong>Enhanced Capabilities:</strong> Your selected Gemini model provides advanced web scraping, real-time data analysis, 
-                      and superior property market intelligence for Dubai real estate.
-                    </p>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <div className="flex items-center text-sm text-gray-600 mb-2">
-                      <span className="h-2 w-2 rounded-full mr-2 bg-green-500"></span>
-                      <span>Gemini API Key: Configured and Active</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 mb-2">
-                      <span className="h-2 w-2 rounded-full mr-2 bg-green-500"></span>
-                      <span>Model: {currentGeminiModel}</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <span className="h-2 w-2 rounded-full mr-2 bg-green-500"></span>
-                      <span>Features: Real-time web scraping, accurate property data</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <button
-                      onClick={testGeminiKey}
-                      disabled={testingGeminiKey}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-purple-300"
-                    >
-                      {testingGeminiKey ? 'Testing...' : 'Test Gemini API'}
-                    </button>
-                    
-                    {geminiTestResult.message && (
-                      <div className={`mt-2 p-3 ${geminiTestResult.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'} rounded-md flex items-center`}>
-                        {geminiTestResult.success ? 
-                          <FaCheck className="text-green-600 mr-2" /> : 
-                          <FaExclamationTriangle className="text-red-600 mr-2" />
-                        }
-                        {geminiTestResult.message}
-                      </div>
+                {/* Test API Key Section */}
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-md font-semibold mb-3 text-gray-700">Test Your Gemini API Key</h3>
+                  <button
+                    onClick={testGeminiKey}
+                    className={`w-full px-4 py-2 text-white rounded-md transition-colors flex items-center justify-center gap-2 ${
+                      testingGeminiKey ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                    disabled={testingGeminiKey || !geminiApiKey.trim()}
+                  >
+                    {testingGeminiKey ? (
+                      <><FaSpinner className="animate-spin" /> Testing...</> 
+                    ) : (
+                      <><FaKey /> Test Key</>
                     )}
+                  </button>
+                  {geminiTestResult.message && (
+                    <div className={`mt-3 p-3 rounded-md text-sm ${
+                      geminiTestResult.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}
+                    >
+                      {geminiTestResult.message}
+                    </div>
+                  )}
+                   <p className="text-xs text-gray-500 mt-2">
+                    Current model for testing: <span className="font-medium">{currentGeminiModel}</span>.
+                  </p>
+                </div>
+
+                {/* Informational Box - Removed trailing backslash */}
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <div className="flex items-start">
+                    <FaInfoCircle className="text-blue-600 mt-1 mr-3 flex-shrink-0" size={20} />
+                    <div>
+                      <h3 className="font-medium text-blue-800">About Gemini API Usage</h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        The Gemini API is used for features like AI Market Analysis, Property Details Scraping, and generating insights.
+                        Ensure your API key has the necessary permissions and quotas.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import {
   FaRobot, FaChartLine, FaInfoCircle, FaSearch, FaMapMarkerAlt, 
   FaExclamationTriangle, FaHome, FaBuilding, FaEye, FaLayerGroup, 
   FaCar, FaPhone, FaEnvelope, FaPaw, FaLocationArrow,
-  FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser
+  FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser, FaExternalLinkAlt, FaBrain
 } from 'react-icons/fa';
 import Link from 'next/link';
 import rentalApiService, { RentalListing, RentalFilter, RentalApiResponse } from '../services/rentalApiService';
@@ -104,9 +104,10 @@ const RentalDataTable = () => {
   } | null>(null);
   
   // State for area selection
-  const [selectedArea, setSelectedArea] = useState<string>('Dubai Marina');
+  const [selectedArea, setSelectedArea] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showFilterInputs, setShowFilterInputs] = useState(false); // New state for filter visibility
+  const [showFilterInputs, setShowFilterInputs] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
   // State for filters
   const [filters, setFilters] = useState<FilterState>({
@@ -201,7 +202,15 @@ const RentalDataTable = () => {
   }, [filters]);
   
   // Fetch rental listings
-  const fetchRentalListings = useCallback(async () => {
+  const fetchRentalListings = useCallback(async (areaToFetch?: string) => {
+    const area = areaToFetch || selectedArea;
+    if (!area && !searchQuery) {
+      setListings([]);
+      setTotalListings(0);
+      setLoading(false);
+      setError("Please enter a location or apply filters to see results.");
+      return;
+    }
     setLoading(true);
     setError(null);
     
@@ -211,7 +220,7 @@ const RentalDataTable = () => {
       const startTime = performance.now();
       
       const response: RentalApiResponse = await rentalApiService.getRentalListings(
-        selectedArea,
+        area,
         apiFilters,
         currentPage,
         rowsPerPage
@@ -293,17 +302,47 @@ const RentalDataTable = () => {
     return () => clearInterval(intervalId);
   }, [selectedArea, lastFetchTime]);
   
-  // Check if API key is configured on component mount
+  // Initial fetch and API key check
   useEffect(() => {
-    const hasApiKey = apiKeyService.isApiKeyConfigured();
-    setIsApiKeyConfigured(hasApiKey);
+    const key = apiKeyService.getGeminiApiKey();
+    if (key) {
+      setIsApiKeyConfigured(true);
+      // setLoading(false); // Data will be loaded based on search/filter
+    } else {
+      setIsApiKeyConfigured(false);
+      setError('Gemini API key is not configured. Please set it in Settings to fetch rental data.');
+      setLoading(false);
+    }
   }, []);
-  
-  // Handle API key setup
+
+  // Fetch when selectedArea or filters change (and API key is present)
+   useEffect(() => {
+    if (isApiKeyConfigured && (selectedArea || Object.values(filters).some(f => f !== ''))) {
+        fetchRentalListings(selectedArea);
+    } else if (!isApiKeyConfigured) {
+        setListings([]);
+        setTotalListings(0);
+        setError('Gemini API key is not configured. Please set it in Settings.');
+        setLoading(false);
+    } else if (!selectedArea && Object.values(filters).every(f => f === '')) {
+        // No area selected and no filters applied
+        setListings([]);
+        setTotalListings(0);
+        setError("Please enter a location or apply filters to see results.");
+        setLoading(false);
+    }
+   }, [selectedArea, filters, isApiKeyConfigured, fetchRentalListings]);
+
   const handleApiKeySet = (success: boolean) => {
     setIsApiKeyConfigured(success);
     if (success) {
-      setShowApiKeyInput(false);
+      setShowApiKeyInput(false); // Hide input after successful setup
+      // Optionally trigger a fetch if an area was already selected/searched
+      if (selectedArea || searchQuery) {
+        fetchRentalListings(selectedArea || searchQuery);
+      }
+    } else {
+        setError('Failed to configure API key. Please try again in Settings.');
     }
   };
   
@@ -323,11 +362,12 @@ const RentalDataTable = () => {
 
   // Add function to handle manual search (Enter key or search button)
   const handleManualSearch = () => {
-    if (searchQuery.trim()) {
-      setSelectedArea(searchQuery.trim());
-      setCurrentPage(1);
-      fetchRentalListings();
+    if (!searchQuery.trim()) {
+      setError("Please enter a location to search.");
+      return;
     }
+    setSelectedArea(searchQuery.trim()); // Set selectedArea which triggers fetch in useEffect
+    // fetchRentalListings(searchQuery.trim()); // This line is redundant due to above useEffect
   };
 
   // Handle Enter key press in search input
@@ -578,463 +618,379 @@ const RentalDataTable = () => {
   
 
   return (
-    <div className="bg-anti-flash-white rounded-lg shadow-md">
-      {/* API Key Configuration Section */}
-      {showApiKeyInput && (
-        <div className="luxury-card-modern mb-6 animate-pulse">
-          <div className="p-4 border-b border-almond bg-beige flex justify-between items-center">
-            <h2 className="text-xl font-bold text-dubai-blue-900">API Key Configuration</h2>
-            <button 
-              onClick={() => setShowApiKeyInput(false)}
-              className="text-dubai-blue-900/60 hover:text-dubai-blue-900"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="p-4">
-            <ApiKeyInput 
-              onApiKeySet={handleApiKeySet}
-              className="mb-4"
-            />
-          </div>
+    <div className="bg-anti-flash-white p-1 md:p-2 rounded-lg shadow-lg">
+      {/* Show ApiKeyInput if not configured and user hasn't explicitly hidden it (e.g. via a settings page link) */}
+      {!isApiKeyConfigured && showApiKeyInput && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+          <h3 className="text-lg font-semibold text-yellow-800 mb-2">API Key Required</h3>
+          <p className="text-sm text-yellow-700 mb-3">
+            A Gemini API key is required to fetch and analyze rental data. Please enter your key below or configure it in the main settings.
+          </p>
+          <ApiKeyInput onApiKeySet={handleApiKeySet} />
+          <button onClick={() => setShowApiKeyInput(false)} className="text-xs text-gray-500 mt-2 hover:underline">
+            Dismiss (configure in settings later)
+          </button>
         </div>
       )}
-      
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600 flex items-start">
-          <FaExclamationTriangle className="mt-1 mr-3 flex-shrink-0" />
-          <div>
-            <h3 className="font-medium">Error</h3>
-            <p>{error}</p>
-          </div>
-        </div>
-      )}
-      
-      {/* New Header and Filter Toggle Area */}
-      <div className="p-4 bg-beige rounded-t-lg border-b border-almond">
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-          <div>
-            <h2 className="text-dubai-blue-900 text-xl font-bold">
-              Rental Listings: <span className="text-tuscany">{selectedArea || 'All Areas'}</span>
-            </h2>
-            {filters.propertyType && (
-              <span className="text-sm text-dubai-blue-700 block">Type: {filters.propertyType}</span>
-            )}
+       {!isApiKeyConfigured && !showApiKeyInput && (
+        <div className="p-4 mb-4 text-sm text-orange-700 bg-orange-100 rounded-lg border border-orange-300 flex items-center justify-between">
+          <div className="flex items-center">
+            <FaExclamationTriangle className="mr-2" /> 
+            <span>Gemini API key is not configured. AI features are disabled.</span>
           </div>
           <button 
-            onClick={() => setShowFilterInputs(!showFilterInputs)}
-            className="btn-modern flex items-center text-sm py-2 px-3"
+            onClick={() => setShowApiKeyInput(true)} 
+            className="ml-4 px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded hover:bg-orange-600 transition-colors"
           >
-            <FaFilter className="mr-2" /> {showFilterInputs ? 'Hide Filters' : 'Show Filters'}
+            Configure Key
           </button>
         </div>
+      )}
 
-        {/* Collapsible Filters Section */}
-        {showFilterInputs && (
-          <div className="flex flex-wrap items-end gap-4 pt-4 border-t border-dashed border-almond/50">
+      {/* Header and Search Section */}
+      <div className="mb-4 p-4 bg-white rounded-t-lg shadow">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-dubai-blue-900">
+              Rental Listings: <span className="text-tuscany">{selectedArea || 'All Areas'}</span>
+            </h2>
+            <p className="text-sm text-gray-500">
+              Displaying {listings.length} of {totalListings} listings for {selectedArea || 'your search'}
+            </p>
+          </div>
+          <div className="flex items-center space-x-2 mt-3 md:mt-0">
+            <button 
+              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors flex items-center"
+            >
+              <FaSearch className="mr-2" /> {showAdvancedSearch ? 'Hide Search' : 'Show Search'}
+            </button>
+            <button 
+              onClick={() => setShowFilterInputs(!showFilterInputs)}
+              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors flex items-center"
+            >
+              <FaFilter className="mr-2" /> {showFilterInputs ? 'Hide Filters' : 'Show Filters'}
+            </button>
+          </div>
+        </div>
+
+        {/* Search Bar - Appears when showAdvancedSearch is true */}
+        {showAdvancedSearch && (
+          <div className="mt-4 mb-4">
+            <div className="flex flex-col sm:flex-row items-center gap-2 p-3 bg-sky-50 rounded-lg border border-sky-200">
+              <FaMapMarkerAlt className="text-sky-600 text-xl mb-2 sm:mb-0" />
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
+                placeholder="E.g., Dubai Marina, JLT, Downtown..."
+                className="flex-grow p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 shadow-sm"
+              />
+              <button 
+                onClick={handleManualSearch}
+                className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center shadow hover:shadow-md"
+                disabled={loading || !searchQuery.trim()}
+              >
+                {loading && (selectedArea === searchQuery.trim() || !selectedArea && listings.length === 0) ? <FaSpinner className="animate-spin mr-2" /> : <FaSearch className="mr-2" />} 
+                Search
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Filters Section - Collapsible */}
+      {showFilterInputs && (
+        <div className="mb-4 p-4 bg-white rounded-lg shadow">
+          <h3 className="text-lg font-semibold text-gray-700 mb-3">Filter Options</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Property Type */}
-            <div className="w-full sm:w-auto">
-              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-                Property Type
-              </label>
+            <div>
+              <label htmlFor="propertyType" className="block text-sm font-medium text-gray-600 mb-1">Property Type</label>
               <select 
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                id="propertyType"
                 value={filters.propertyType}
                 onChange={(e) => handleFilterChange('propertyType', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
               >
                 <option value="">All Types</option>
-                {propertyTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
+                {propertyTypes.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
             </div>
-            
             {/* Bedrooms */}
-            <div className="w-full sm:w-auto">
-              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-                Bedrooms
-              </label>
+            <div>
+              <label htmlFor="bedrooms" className="block text-sm font-medium text-gray-600 mb-1">Bedrooms</label>
               <select 
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                id="bedrooms"
                 value={filters.bedrooms}
                 onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
               >
-                <option value="">All</option>
-                {bedroomOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
+                <option value="">Any</option>
+                {bedroomOptions.map(beds => <option key={beds} value={beds}>{beds === '5+' ? '5+ Beds' : beds}</option>)}
               </select>
             </div>
-            
-            {/* Size Min/Max */}
-            <div className="w-full sm:w-auto">
-              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-                Size (sqft)
-              </label>
-              <div className="flex space-x-2">
-                <input 
-                  type="number"
-                  placeholder="Min"
-                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                  value={filters.sizeMin}
-                  onChange={(e) => handleFilterChange('sizeMin', e.target.value)}
-                />
-                <input 
-                  type="number"
-                  placeholder="Max"
-                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                  value={filters.sizeMax}
-                  onChange={(e) => handleFilterChange('sizeMax', e.target.value)}
-                />
-              </div>
+            {/* Rent Min */}
+            <div>
+              <label htmlFor="rentMin" className="block text-sm font-medium text-gray-600 mb-1">Min Rent (AED/Month)</label>
+              <input 
+                type="number"
+                id="rentMin"
+                placeholder="e.g., 50000"
+                value={filters.rentMin}
+                onChange={(e) => handleFilterChange('rentMin', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
+              />
             </div>
-            
-            {/* Rent Min/Max */}
-            <div className="w-full sm:w-auto">
-              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-                Rent (AED/month)
-              </label>
-              <div className="flex space-x-2">
-                <input 
-                  type="number"
-                  placeholder="Min"
-                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                  value={filters.rentMin}
-                  onChange={(e) => handleFilterChange('rentMin', e.target.value)}
-                />
-                <input 
-                  type="number"
-                  placeholder="Max"
-                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                  value={filters.rentMax}
-                  onChange={(e) => handleFilterChange('rentMax', e.target.value)}
-                />
-              </div>
+            {/* Rent Max */}
+            <div>
+              <label htmlFor="rentMax" className="block text-sm font-medium text-gray-600 mb-1">Max Rent (AED/Month)</label>
+              <input 
+                type="number"
+                id="rentMax"
+                placeholder="e.g., 150000"
+                value={filters.rentMax}
+                onChange={(e) => handleFilterChange('rentMax', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
+              />
             </div>
-            
+            {/* Size Min */}
+            <div>
+              <label htmlFor="sizeMin" className="block text-sm font-medium text-gray-600 mb-1">Min Size (sqft)</label>
+              <input 
+                type="number"
+                id="sizeMin"
+                placeholder="e.g., 500"
+                value={filters.sizeMin}
+                onChange={(e) => handleFilterChange('sizeMin', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
+              />
+            </div>
+            {/* Size Max */}
+            <div>
+              <label htmlFor="sizeMax" className="block text-sm font-medium text-gray-600 mb-1">Max Size (sqft)</label>
+              <input 
+                type="number"
+                id="sizeMax"
+                placeholder="e.g., 2000"
+                value={filters.sizeMax}
+                onChange={(e) => handleFilterChange('sizeMax', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
+              />
+            </div>
             {/* Furnishing */}
-            <div className="w-full sm:w-auto">
-              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-                Furnishing
-              </label>
+            <div>
+              <label htmlFor="furnishing" className="block text-sm font-medium text-gray-600 mb-1">Furnishing</label>
               <select 
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                id="furnishing"
                 value={filters.furnishing}
                 onChange={(e) => handleFilterChange('furnishing', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-tuscany focus:border-tuscany shadow-sm"
               >
-                <option value="">All</option>
-                {furnishingOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
+                <option value="">Any</option>
+                {furnishingOptions.map(option => <option key={option} value={option}>{option}</option>)}
               </select>
             </div>
-
-            {/* Area selection (Search input for area) */}
-            <div className="w-full sm:w-auto">
-              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-                Change Area
-              </label>
-              <div className="relative flex">
-                <input
-                  type="text"
-                  className="bg-white border border-almond rounded-l-md pl-10 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
-                  value={searchQuery} /* This should be distinct from selectedArea for input */
-                  onChange={handleAreaChange}
-                  onKeyDown={handleSearchKeyPress}
-                  placeholder="Search new area..."
-                />
-                <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
-                <button
-                  onClick={handleManualSearch}
-                  className="bg-tuscany text-white px-3 py-2 rounded-r-md hover:bg-tuscany/80 transition-colors border border-tuscany"
-                  type="button"
-                >
-                  Go
-                </button>
-                {/* Autocomplete dropdown for area search query */}
-                {searchQuery && popularAreas.filter(area => area.toLowerCase().includes(searchQuery.toLowerCase()) && area !== selectedArea).length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-y-auto border border-almond top-full left-0">
-                    {popularAreas
-                      .filter(area => area.toLowerCase().includes(searchQuery.toLowerCase()) && area !== selectedArea)
-                      .map((area, index) => (
-                        <div
-                          key={index}
-                          className="px-3 py-2 text-sm cursor-pointer hover:bg-beige"
-                          onClick={() => handleAreaSelect(area)}
-                        >
-                          {area}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
-        )}
-        
-        {/* Active filters display (remains same) */}
-        {activeFilters.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {activeFilters.map((filter, index) => (
-              <div 
-                key={index}
-                className="bg-tuscany text-white px-2 py-1 rounded-full text-xs flex items-center"
-              >
-                <span>{getFilterLabel(filter.key)}: {formatFilterValue(filter.key, filter.value)}</span>
-                <button 
-                  onClick={() => removeFilter(filter.key)}
-                  className="ml-1 rounded-full bg-white text-tuscany w-4 h-4 flex items-center justify-center leading-none hover:bg-almond transition-colors"
-                >
-                  ×
-                </button>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button 
+              onClick={clearAllFilters} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            >
+              Clear All Filters
+            </button>
+            {/* Apply Filters button can be added if needed, or filters can apply on change */}
+          </div>
+        </div>
+      )}
+
+      {/* Active Filters Chips */}
+      {activeFilters.length > 0 && (
+        <div className="my-3 p-3 bg-white rounded-lg shadow">
+          <h4 className="text-sm font-semibold text-gray-600 mb-2">Active Filters:</h4>
+          <div className="flex flex-wrap gap-2">
+            {activeFilters.map(filter => (
+              <div key={filter.key} className="flex items-center bg-tuscany/20 text-tuscany-dark text-xs px-2 py-1 rounded-full">
+                <strong>{getFilterLabel(filter.key)}:</strong>&nbsp;{formatFilterValue(filter.key, filter.value)}
+                <button onClick={() => removeFilter(filter.key)} className="ml-2 text-tuscany hover:text-tuscany-dark font-bold">×</button>
               </div>
             ))}
-            <button 
-              onClick={clearAllFilters}
-              className="text-tuscany hover:text-tuscany/70 text-xs underline"
-            >
-              Clear All
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons: AI Analysis, Export, Copy - More minimal look */}
+      <div className="mb-4 p-3 bg-white rounded-lg shadow flex flex-col sm:flex-row justify-between items-center">
+        <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+          <p className="text-sm text-gray-600">
+            {totalListings > 0 ? `Showing ${listings.length} of ${totalListings} results.` : 'No results found matching your criteria.'}
+          </p>
+          {loading && <FaSpinner className="animate-spin text-tuscany" />}
+        </div>
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={fetchAiAnalysis}
+            disabled={isAnalysisLoading || listings.length === 0 || !isApiKeyConfigured}
+            className="px-3 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAnalysisLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaRobot className="mr-2" />}AI Market Analysis
+          </button>
+          <button 
+            onClick={exportCSV} 
+            disabled={listings.length === 0}
+            className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FaDownload className="mr-2" />Export CSV
+          </button>
+          <button 
+            onClick={copyToClipboard} 
+            disabled={listings.length === 0}
+            className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FaCopy className="mr-2" />Copy Table
+          </button>
+        </div>
+      </div>
+
+      {/* Loading and Error States */}
+      {loading && listings.length === 0 && (
+        <div className="text-center py-10">
+          <FaSpinner className="animate-spin text-tuscany text-4xl mx-auto mb-4" />
+          <p className="text-gray-600">Loading rental listings for {selectedArea || 'your search'}...</p>
+        </div>
+      )}
+      {error && (
+        <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-300 flex items-center">
+          <FaExclamationTriangle className="mr-2" /> {error}
+        </div>
+      )}
+      
+      {/* AI Analysis Section */}
+      {showAnalysis && (
+        <div className="my-6 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl shadow-xl border border-purple-200">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold text-purple-700 flex items-center">
+              <FaBrain className="mr-2" /> AI Market Analysis for {selectedArea || 'Selected Area'}
+            </h3>
+            <button onClick={() => setShowAnalysis(false)} className="text-gray-500 hover:text-gray-700">
+              &times;
             </button>
           </div>
-        )}
-      </div>
-      
-      {/* Action Buttons and main title are now separate from filter controls */}
-      <div className="p-4 bg-anti-flash-white border-b border-almond flex justify-between items-center flex-wrap gap-2">
-        <div>
-          <span className="text-sm font-medium text-dubai-blue-600">
-             Displaying {totalListings} listings for {selectedArea}{filters.propertyType ? ` (${filters.propertyType})` : ''}
-          </span>
-          {newListingsCount > 0 && (
-            <button
-              onClick={fetchRentalListings}
-              className="text-tuscany hover:underline text-sm font-medium mt-1"
-            >
-              {newListingsCount} new {newListingsCount === 1 ? 'listing' : 'listings'} available - Click to refresh
-            </button>
+          {isAnalysisLoading && (
+            <div className="flex flex-col items-center justify-center h-40">
+              <FaSpinner className="animate-spin text-purple-600 text-3xl mb-3" />
+              <p className="text-purple-600">Generating insights, please wait...</p>
+            </div>
+          )}
+          {analysisError && <p className="text-red-500">Error: {analysisError}</p>}
+          {aiAnalysis && !isAnalysisLoading && (
+            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed">
+              {formatAnalysis(aiAnalysis)}
+            </div>
           )}
         </div>
-        
-        <div className="flex space-x-2">
-          <button
-            onClick={fetchAiAnalysis}
-            className="btn-modern flex items-center text-sm"
-            disabled={isAnalysisLoading || !isApiKeyConfigured}
+      )}
+
+      {/* Table Data */}
+      {!loading && listings.length === 0 && !error && (
+        <div className="text-center py-10 bg-white rounded-lg shadow">
+          <FaInfoCircle className="text-gray-400 text-5xl mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">
+            No rental listings found matching your filters for "{selectedArea || 'current view'}".
+          </h3>
+          <p className="text-gray-500 mb-4">Try adjusting your search criteria or filters.</p>
+          <button 
+            onClick={clearAllFilters} 
+            className="px-4 py-2 bg-tuscany hover:bg-tuscany-dark text-white rounded-md transition-colors"
           >
-            {isAnalysisLoading ? (
-              <>
-                <FaSpinner className="animate-spin mr-2" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <FaRobot className="mr-2" />
-                AI Market Analysis
-              </>
-            )}
-          </button>
-          
-          <button
-            onClick={exportCSV}
-            className="bg-white border border-almond text-dubai-blue-900 px-3 py-1 rounded hover:bg-beige transition-colors flex items-center text-sm"
-          >
-            <FaDownload className="mr-1" />
-            Export CSV
-          </button>
-          
-          <button
-            onClick={copyToClipboard}
-            className="bg-white border border-almond text-dubai-blue-900 px-3 py-1 rounded hover:bg-beige transition-colors flex items-center text-sm"
-          >
-            <FaCopy className="mr-1" />
-            Copy Table
+            Clear all filters
           </button>
         </div>
-      </div>
-      
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="luxury-table-modern w-full">
-          <thead>
-            <tr>
-              <th onClick={() => requestSort('type')} className="cursor-pointer">
-                Type {getSortIndicator('type')}
-              </th>
-              <th onClick={() => requestSort('propertyName' as keyof RentalListing)} className="cursor-pointer">
-                Property Name {getSortIndicator('propertyName' as keyof RentalListing)}
-              </th>
-              <th onClick={() => requestSort('fullAddress' as keyof RentalListing)} className="cursor-pointer">
-                Full Address {getSortIndicator('fullAddress' as keyof RentalListing)}
-              </th>
-              <th onClick={() => requestSort('bedrooms')} className="cursor-pointer">
-                Bedrooms {getSortIndicator('bedrooms')}
-              </th>
-              <th onClick={() => requestSort('floorLevel' as keyof RentalListing)} className="cursor-pointer">
-                Floor {getSortIndicator('floorLevel' as keyof RentalListing)}
-              </th>
-              <th onClick={() => requestSort('size')} className="cursor-pointer">
-                Size (sqft) {getSortIndicator('size')}
-              </th>
-              <th onClick={() => requestSort('rent')} className="cursor-pointer">
-                Rent (AED/month) {getSortIndicator('rent')}
-              </th>
-              <th onClick={() => requestSort('furnishing')} className="cursor-pointer">
-                Furnishing {getSortIndicator('furnishing')}
-              </th>
-              <th onClick={() => requestSort('availableSince')} className="cursor-pointer">
-                Available Since {getSortIndicator('availableSince')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="text-center py-8">
-                  <div className="inline-flex items-center">
-                    <div className="animate-spin h-6 w-6 border-t-2 border-b-2 border-tuscany rounded-full mr-2"></div>
-                    <span>Loading properties...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : listings.length > 0 ? (
-              listings.map((listing) => (
-                                <React.Fragment key={listing.id}>                  <tr                     className="hover:bg-beige transition-colors"                  >
-                    <td className="flex items-center">
-                      <span className="mr-2">
-                        {listing.type === 'Apartment' ? <FaBuilding className="text-tuscany" /> : 
-                         listing.type === 'Villa' ? <FaHome className="text-tuscany" /> :
-                         <FaBuilding className="text-tuscany" />}
-                      </span>
-                      {listing.type}
-                    </td>
-                    <td className="font-medium text-dubai-blue-900">
-                      {listing.propertyName || 'Property Name Not Available'}
-                    </td>
-                    <td className="text-sm text-gray-700">
-                      {listing.fullAddress || listing.location || 'Address N/A'}
-                    </td>
-                    <td>{listing.bedrooms === 0 ? 'Studio' : listing.bedrooms}</td>
-                    <td>{listing.floorLevel || 'N/A'}</td>
-                    <td>{listing.size}</td>
-                    <td className="font-medium">{formatCurrency(listing.rent)}</td>
-                    <td>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs
-                        ${listing.furnishing === 'Furnished' ? 'bg-green-100 text-green-800' : 
-                          listing.furnishing === 'Unfurnished' ? 'bg-gray-100 text-gray-800' : 
-                          'bg-blue-100 text-blue-800'}`
-                        }>
-                        <FaChair className="mr-1" /> {listing.furnishing}
-                      </span>
-                    </td>
-                                        <td>                      <div className="flex items-center">                        <FaCalendarAlt className="mr-2 text-tuscany" />                        {new Date(listing.availableSince).toLocaleDateString()}                      </div>                    </td>
-                                      </tr>                </React.Fragment>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={9} className="text-center py-8 text-dubai-blue-900/70">
-                  <FaInfoCircle className="text-3xl mx-auto mb-2" />
-                  <p>No rental listings found matching your filters.</p>
-                  <button 
-                    onClick={clearAllFilters}
-                    className="text-tuscany hover:underline mt-2 text-sm font-medium"
-                  >
-                    Clear all filters
-                  </button>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      
-      {/* Pagination */}
+      )}
+
       {listings.length > 0 && (
-        <div className="p-4 flex justify-between items-center bg-anti-flash-white border-t border-almond">
-          <div className="text-sm text-dubai-blue-900/70">
-            Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, totalListings)} of {totalListings} results
-          </div>
-          
+        <div className="overflow-x-auto bg-white rounded-b-lg shadow">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr>
+                {[
+                  { key: 'type', label: 'Type' },
+                  { key: 'propertyName', label: 'Property Name' },
+                  { key: 'fullAddress', label: 'Full Address' },
+                  { key: 'bedrooms', label: 'Bedrooms' },
+                  { key: 'floorLevel', label: 'Floor' },
+                  { key: 'size', label: 'Size (sqft)' },
+                  { key: 'rent', label: 'Rent (AED/Month)' },
+                  { key: 'furnishing', label: 'Furnishing' },
+                  { key: 'availableSince', label: 'Available Since' },
+                  { key: 'actions', label: 'Actions' },
+                ].map((col) => (
+                  <th
+                    key={col.key}
+                    onClick={() => requestSort(col.key as keyof RentalListing)}
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                  >
+                    <div className="flex items-center">
+                      {col.label}
+                      {getSortIndicator(col.key as keyof RentalListing)}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {listings.map((listing) => (
+                <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${listing.type === 'Apartment' ? 'bg-blue-100 text-blue-800' : listing.type === 'Villa' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {listing.type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{listing.propertyName}</td>
+                  <td className="px-4 py-3 whitespace-normal max-w-xs text-gray-500">{listing.fullAddress}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">{listing.bedrooms}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">{listing.floorLevel || 'N/A'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">{listing.size.toLocaleString()}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-tuscany">{formatCurrency(listing.rent)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{listing.furnishing}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {listing.availableSince ? new Date(listing.availableSince).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                     {/* Ensure listing.id is a string or number before passing to encodeURIComponent */}
+                    <Link href={`/property-data/${encodeURIComponent(listing.propertyName || 'unknown_property')}?area=${encodeURIComponent(selectedArea)}&id=${encodeURIComponent(String(listing.id))}`} className="text-indigo-600 hover:text-indigo-900 flex items-center">
+                       <FaEye className="mr-1" /> View Details
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalListings > rowsPerPage && (
+        <div className="mt-6 flex justify-between items-center bg-white p-3 rounded-lg shadow">
+          <p className="text-sm text-gray-600">
+            Page {currentPage} of {Math.ceil(totalListings / rowsPerPage)}
+          </p>
           <div className="flex space-x-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
+            <button 
+              onClick={() => handlePageChange(currentPage - 1)} 
               disabled={currentPage === 1}
-              className="bg-white border border-almond text-dubai-blue-900 px-3 py-1 rounded disabled:opacity-50 hover:bg-beige transition-colors"
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50"
             >
               Previous
             </button>
-            
-            <div className="bg-white border border-almond rounded flex divide-x divide-almond">
-              {[...Array(Math.min(5, Math.ceil(totalListings / rowsPerPage)))].map((_, i) => {
-                // Show current page, 2 pages before and 2 pages after, if available
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-1 ${
-                      currentPage === pageNum ? 'bg-beige font-medium' : 'hover:bg-beige/50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage * rowsPerPage >= totalListings}
-              className="bg-white border border-almond text-dubai-blue-900 px-3 py-1 rounded disabled:opacity-50 hover:bg-beige transition-colors"
+            <button 
+              onClick={() => handlePageChange(currentPage + 1)} 
+              disabled={currentPage >= Math.ceil(totalListings / rowsPerPage)}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50"
             >
               Next
             </button>
-          </div>
-        </div>
-      )}
-      
-      {/* AI Analysis Modal */}
-      {showAnalysis && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="luxury-card-modern max-w-4xl w-full max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b border-almond bg-beige flex justify-between items-center">
-              <h2 className="text-xl font-bold text-dubai-blue-900">AI Rental Market Analysis</h2>
-              <button 
-                onClick={() => setShowAnalysis(false)}
-                className="text-dubai-blue-900/60 hover:text-dubai-blue-900"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto flex-grow">
-              {isAnalysisLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-tuscany rounded-full mr-2"></div>
-                  <p>Analyzing the rental market...</p>
-                </div>
-              ) : analysisError ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600">
-                  <FaExclamationTriangle className="inline-block mr-2" />
-                  {analysisError}
-                </div>
-              ) : aiAnalysis ? (
-                <div className="prose max-w-none">
-                  {formatAnalysis(aiAnalysis)}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-dubai-blue-900/70">
-                  <FaInfoCircle className="text-3xl mx-auto mb-3" />
-                  <p>No analysis available yet. Please run the AI analysis first.</p>
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-almond bg-beige flex justify-end">
-              <button
-                onClick={() => setShowAnalysis(false)}
-                className="bg-white border border-almond text-dubai-blue-900 px-4 py-2 rounded hover:bg-beige transition-colors"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
