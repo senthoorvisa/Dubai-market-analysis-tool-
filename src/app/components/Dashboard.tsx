@@ -72,22 +72,6 @@ const Dashboard: React.FC = () => {
             </div>
           </Link>
 
-          {/* Market Forecast */}
-          <Link href="/forecast" className="group">
-            <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-300">
-              <div className="flex items-center mb-4">
-                <FaChartLine className="text-3xl text-green-600 mr-3" />
-                <h3 className="text-xl font-semibold text-gray-800">Market Forecast</h3>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Get AI-powered predictions and market trends for Dubai real estate investments.
-              </p>
-              <div className="text-green-600 group-hover:text-green-800 font-medium">
-                View Forecasts →
-              </div>
-            </div>
-          </Link>
-
           {/* Developer Analysis */}
           <Link href="/developer-analysis" className="group">
             <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-300">

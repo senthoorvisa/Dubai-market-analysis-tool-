@@ -76,16 +76,6 @@ export default function ClientLayout({
               Developer Analysis
             </Link>
             <Link 
-              href="/demographics" 
-              className={`transition-colors font-medium ${
-                currentPath === '/demographics' 
-                  ? 'text-tuscany border-b-2 border-tuscany pb-1' 
-                  : 'text-dubai-blue-700 hover:text-tuscany'
-              }`}
-            >
-              Demographics
-            </Link>
-            <Link 
               href="/settings" 
               className={`transition-colors font-medium ${
                 currentPath === '/settings' 
@@ -154,16 +144,6 @@ export default function ClientLayout({
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Developer Analysis
-                </Link>
-                <Link href="/demographics" 
-                  className={`py-2 transition-colors ${
-                    currentPath === '/demographics' 
-                      ? 'text-tuscany font-medium' 
-                      : 'text-dubai-blue-700 hover:text-tuscany'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Demographics
                 </Link>
                 <Link href="/settings" 
                   className={`py-2 transition-colors ${

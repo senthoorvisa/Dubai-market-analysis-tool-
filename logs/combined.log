@@ -16,3 +16,13 @@
 {"level":"info","message":"Fetching current rental data","service":"RENTAL_ROUTES","timestamp":"2025-05-30T15:23:01.327Z"}
 {"level":"warn","message":"No processed data files found","service":"RENTAL_PROCESSOR","timestamp":"2025-05-30T15:23:01.352Z"}
 {"level":"warn","message":"Gemini client not available: GEMINI_API_KEY environment variable is required","service":"AI_ROUTES","timestamp":"2025-05-30T15:31:00.048Z"}
+{"level":"warn","message":"Gemini client not available: GEMINI_API_KEY environment variable is required","service":"AI_ROUTES","timestamp":"2025-05-30T15:31:47.298Z"}
+{"level":"info","message":"Rental data scheduler started","nextRun":"2025-05-30T20:30:00.000Z","schedule":"Daily at 2:00 AM (Dubai Time)","service":"RENTAL_SCHEDULER","timestamp":"2025-05-30T15:31:49.945Z"}
+{"level":"info","message":"Developer analysis scheduler started","nextRun":"2025-05-31T21:30:00.000Z","schedule":"Weekly on Sundays at 3:00 AM (Dubai Time)","service":"DEVELOPER_SCHEDULER","timestamp":"2025-05-30T15:31:49.948Z"}
+{"level":"info","message":"✅ Started daily-demand-collection scheduler","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T15:31:49.950Z"}
+{"level":"info","message":"✅ Started weekly-demand-analysis scheduler","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T15:31:49.951Z"}
+{"level":"info","message":"✅ Started monthly-demographic-update scheduler","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T15:31:49.951Z"}
+{"level":"info","message":"🕐 Market Demand scheduler started successfully","service":"DEMAND_SCHEDULER","timestamp":"2025-05-30T15:31:49.952Z"}
+{"level":"info","message":"Fetching current rental data","service":"RENTAL_ROUTES","timestamp":"2025-05-30T15:32:37.544Z"}
+{"level":"warn","message":"No processed data files found","service":"RENTAL_PROCESSOR","timestamp":"2025-05-30T15:32:37.546Z"}
+{"level":"warn","message":"Gemini client not available: GEMINI_API_KEY environment variable is required","service":"AI_ROUTES","timestamp":"2025-05-30T15:47:54.585Z"}

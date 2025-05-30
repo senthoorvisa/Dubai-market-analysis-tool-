@@ -61,22 +61,6 @@ export default function Home() {
           </div>
         </Link>
         
-        {/* Demographics */}
-        <Link href="/demographics" className="block">
-          <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
-            <div className="flex items-center mb-4">
-              <div className="bg-beige p-3 rounded-full mr-4">
-                <span className="text-tuscany text-xl">👥</span>
-              </div>
-              <h2 className="text-xl font-bold text-dubai-blue-900">Demographics</h2>
-            </div>
-            <p className="text-dubai-blue-700 mb-auto">Explore demographic data and population trends across Dubai's neighborhoods and communities.</p>
-            <div className="mt-4 text-tuscany font-medium flex items-center">
-              View Demographics <span className="ml-2">→</span>
-            </div>
-          </div>
-        </Link>
-        
         {/* Settings */}
         <Link href="/settings" className="block">
           <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow border border-almond h-full flex flex-col">
