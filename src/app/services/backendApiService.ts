@@ -70,6 +70,30 @@ class BackendApiService {
     return this.makeRequest('/api/rentals/stats');
   }
 
+  // Additional rental methods for frontend compatibility
+  async getRentalListings(area?: string, filters?: any) {
+    const params: any = {};
+    if (area) params.area = area;
+    if (filters) Object.assign(params, filters);
+    
+    const queryString = Object.keys(params).length > 0 ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.makeRequest(`/api/rentals/current${queryString}`);
+  }
+
+  async checkForNewListings(area: string, lastFetchTime: number) {
+    const params = { area, since: lastFetchTime.toString() };
+    const queryString = new URLSearchParams(params).toString();
+    const response = await this.makeRequest<{ count: number }>(`/api/rentals/new-count?${queryString}`);
+    return response.data?.count || 0;
+  }
+
+  async analyzeRentalData(area: string, listings: any[]) {
+    return this.makeRequest('/api/ai/rental-analysis', {
+      method: 'POST',
+      body: JSON.stringify({ area, listings }),
+    });
+  }
+
   // Property Lookup APIs
   async getPropertyDetails(id: string) {
     return this.makeRequest(`/api/properties/details/${id}`);

@@ -9,10 +9,58 @@ import {
   FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser, FaExternalLinkAlt, FaBrain
 } from 'react-icons/fa';
 import Link from 'next/link';
-import rentalApiService, { RentalListing, RentalFilter, RentalApiResponse } from '../services/rentalApiService';
-import rentalAiService from '../services/rentalAiService';
+import backendApiService from '../services/backendApiService';
 import apiKeyService from '../services/apiKeyService';
 import ApiKeyInput from './ApiKeyInput';
+
+// Types for rental data
+interface RentalListing {
+  id: string;
+  title: string;
+  rent: number;
+  bedrooms: number;
+  bathrooms: number;
+  size: number;
+  propertyType: string;
+  location: string;
+  area: string;
+  furnishing: string;
+  amenities: string[];
+  description: string;
+  images: string[];
+  agent: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  developer?: string;
+  yearBuilt?: number;
+  parking?: number;
+  balcony?: boolean;
+  pets?: boolean;
+  url: string;
+  dateAdded: string;
+  lastUpdated: string;
+  source: string;
+  confidence: number;
+}
+
+interface RentalFilter {
+  propertyType?: string;
+  bedrooms?: string;
+  sizeMin?: string;
+  sizeMax?: string;
+  rentMin?: string;
+  rentMax?: string;
+  furnishing?: string;
+}
+
+interface RentalApiResponse {
+  data: RentalListing[];
+  totalListings: number;
+  lastUpdated: string | null;
+  message?: string;
+}
 
 // Types
 interface FilterState {
@@ -219,55 +267,44 @@ const RentalDataTable = () => {
       const apiFilters = getApiFilters();
       const startTime = performance.now();
       
-      const response: RentalApiResponse = await rentalApiService.getRentalListings(
-        area,
-        apiFilters,
-        currentPage,
-        rowsPerPage
-      );
+      const response = await backendApiService.getRentalListings(area, apiFilters);
       
       const endTime = performance.now();
       const responseTime = (endTime - startTime) / 1000; // Convert to seconds
       
-      setListings(response.listings);
-      setTotalListings(response.total);
-      setLastFetchTime(now);
-      setNewListingsCount(0); // Reset the new listings counter
-      
-      // Update data quality metrics
-      setDataQualityMetrics({
-        totalListings: response.total,
-        confidence: response.confidence || 0.7,
-        sources: response.sources || [],
-        lastUpdated: response.lastUpdated || new Date().toISOString(),
-        dataSource: response.dataSource || 'fallback',
-        validationPassed: response.listings.length,
-        validationFailed: 0,
-        averageResponseTime: responseTime,
-        errorRate: 0
-      });
-      
-    } catch (err) {
-      if (err instanceof Error && err.message === 'API_KEY_MISSING') {
-        setError('Gemini API key is not configured. Please set it up in Settings to fetch rental data.');
-        setListings([]); // Clear any existing listings
-        setTotalListings(0);
+      if (response.success && response.data) {
+        const rentalData = response.data as RentalApiResponse;
+        setListings(rentalData.data || []);
+        setTotalListings(rentalData.totalListings || 0);
+        setLastFetchTime(now);
+        setNewListingsCount(0); // Reset the new listings counter
+        
+        // Update data quality metrics
+        setDataQualityMetrics({
+          totalListings: rentalData.totalListings || 0,
+          confidence: 0.8, // Default confidence
+          sources: ['Bayut.com'], // Default sources
+          lastUpdated: rentalData.lastUpdated || new Date().toISOString(),
+          dataSource: 'real-time',
+          validationPassed: rentalData.data?.length || 0,
+          validationFailed: 0,
+          averageResponseTime: responseTime,
+          errorRate: 0
+        });
       } else {
-        setError('Failed to fetch rental data. Please check your connection or API key.');
+        setError(response.error || 'Failed to fetch rental data');
+        setListings([]);
+        setTotalListings(0);
       }
+    } catch (err) {
       console.error('Error fetching rental data:', err);
-      
-      // Retry mechanism (optional)
-      // if (attempt < 3) {
-      //   console.log(`Retrying rental data fetch, attempt ${attempt + 1}`);
-      //   setTimeout(() => fetchData(attempt + 1), 2000);
-      // } else {
-      //   setError('Failed to fetch rental data after multiple attempts.');
-      // }
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching data');
+      setListings([]);
+      setTotalListings(0);
     } finally {
       setLoading(false);
     }
-  }, [selectedArea, getApiFilters, currentPage, rowsPerPage]);
+  }, [selectedArea, getApiFilters]);
   
   // Effect to fetch data when area or filters change
   useEffect(() => {
@@ -287,7 +324,7 @@ const RentalDataTable = () => {
   useEffect(() => {
     const checkNewListings = async () => {
       try {
-        const count = await rentalApiService.checkForNewListings(selectedArea, lastFetchTime);
+        const count = await backendApiService.checkForNewListings(selectedArea, lastFetchTime);
         if (count > 0) {
           setNewListingsCount(prevCount => prevCount + count);
         }
@@ -497,15 +534,15 @@ const RentalDataTable = () => {
     // Add data rows
     sortedListings.forEach(listing => {
       const bedrooms = listing.bedrooms === 0 ? 'Studio' : listing.bedrooms;
-      const propertyName = listing.propertyName || 'N/A';
+      const propertyName = listing.title || 'N/A';
       const row = [
-        listing.type,
+        listing.propertyType,
         propertyName,
         bedrooms,
         listing.size,
         listing.rent,
         listing.furnishing,
-        listing.availableSince
+        listing.dateAdded
       ].join(',');
       csvContent += row + "\n";
     });
@@ -526,15 +563,15 @@ const RentalDataTable = () => {
     
     sortedListings.forEach(listing => {
       const bedrooms = listing.bedrooms === 0 ? 'Studio' : listing.bedrooms;
-      const propertyName = listing.propertyName || 'N/A';
+      const propertyName = listing.title || 'N/A';
       const row = [
-        listing.type,
+        listing.propertyType,
         propertyName,
         bedrooms,
         listing.size,
         listing.rent,
         listing.furnishing,
-        listing.availableSince
+        listing.dateAdded
       ].join('\t');
       tableText += row + "\n";
     });
@@ -590,7 +627,7 @@ const RentalDataTable = () => {
       }
       
       // Use the new analyzeRentalData function for better HTML formatting
-      const htmlAnalysis = await rentalAiService.analyzeRentalData(
+      const htmlAnalysis = await backendApiService.analyzeRentalData(
         selectedArea,
         listings,
         apiKey
@@ -915,15 +952,15 @@ const RentalDataTable = () => {
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 {[
-                  { key: 'type', label: 'Type' },
-                  { key: 'propertyName', label: 'Property Name' },
-                  { key: 'fullAddress', label: 'Full Address' },
+                  { key: 'propertyType', label: 'Type' },
+                  { key: 'title', label: 'Property Name' },
+                  { key: 'location', label: 'Full Address' },
                   { key: 'bedrooms', label: 'Bedrooms' },
-                  { key: 'floorLevel', label: 'Floor' },
+                  { key: 'bathrooms', label: 'Bathrooms' },
                   { key: 'size', label: 'Size (sqft)' },
                   { key: 'rent', label: 'Rent (AED/Month)' },
                   { key: 'furnishing', label: 'Furnishing' },
-                  { key: 'availableSince', label: 'Available Since' },
+                  { key: 'dateAdded', label: 'Available Since' },
                   { key: 'actions', label: 'Actions' },
                 ].map((col) => (
                   <th
@@ -943,23 +980,23 @@ const RentalDataTable = () => {
               {listings.map((listing) => (
                 <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${listing.type === 'Apartment' ? 'bg-blue-100 text-blue-800' : listing.type === 'Villa' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {listing.type}
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${listing.propertyType === 'Apartment' ? 'bg-blue-100 text-blue-800' : listing.propertyType === 'Villa' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {listing.propertyType}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{listing.propertyName}</td>
-                  <td className="px-4 py-3 whitespace-normal max-w-xs text-gray-500">{listing.fullAddress}</td>
+                  <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{listing.title}</td>
+                  <td className="px-4 py-3 whitespace-normal max-w-xs text-gray-500">{listing.location}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">{listing.bedrooms}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center">{listing.floorLevel || 'N/A'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">{listing.bathrooms}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-right">{listing.size.toLocaleString()}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-tuscany">{formatCurrency(listing.rent)}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{listing.furnishing}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {listing.availableSince ? new Date(listing.availableSince).toLocaleDateString() : 'N/A'}
+                    {listing.dateAdded ? new Date(listing.dateAdded).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                      {/* Ensure listing.id is a string or number before passing to encodeURIComponent */}
-                    <Link href={`/property-data/${encodeURIComponent(listing.propertyName || 'unknown_property')}?area=${encodeURIComponent(selectedArea)}&id=${encodeURIComponent(String(listing.id))}`} className="text-indigo-600 hover:text-indigo-900 flex items-center">
+                    <Link href={`/property-data/${encodeURIComponent(listing.title || 'unknown_property')}?area=${encodeURIComponent(selectedArea)}&id=${encodeURIComponent(String(listing.id))}`} className="text-indigo-600 hover:text-indigo-900 flex items-center">
                        <FaEye className="mr-1" /> View Details
                     </Link>
                   </td>
