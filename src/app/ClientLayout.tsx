@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import openai from './services/initOpenAi';
+import { initializeFromStorage } from './services/initOpenAi';
 import apiKeyService from './services/apiKeyService';
 
 export default function ClientLayout({
@@ -28,7 +28,7 @@ export default function ClientLayout({
       
       // Initialize the OpenAI API key
       try {
-        apiKeyService.initializeWithDefaultKey();
+        initializeFromStorage();
       } catch (error) {
         console.error('Failed to initialize API key:', error);
       }

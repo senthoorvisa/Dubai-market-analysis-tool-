@@ -263,30 +263,37 @@ class RealTimeDataService {
     if (!data?.hits) return [];
 
     return data.hits.map((hit: any) => {
+      const bayutLocationParts = hit.location?.map((l: any) => l.name).filter(Boolean) || [];
+      const detailedLocation = bayutLocationParts.length > 0 ? bayutLocationParts.join(', ') : area;
+      const propertyName = hit.title || `${this.mapPropertyType(hit.categoryName)} in ${detailedLocation}`;
+      const floor = hit.floor || null; // Can be null if not provided
+
       const listing: RentalListing = {
         id: `bayut-${hit.id}`,
         type: this.mapPropertyType(hit.categoryName),
-        bedrooms: hit.rooms || 0,
-        bathrooms: hit.baths || 1,
-        size: hit.area || this.estimateSize(hit.rooms || 0),
-        rent: hit.price || 0,
+        bedrooms: hit.rooms ?? 0, // Use ?? for nullish coalescing
+        bathrooms: hit.baths ?? 1,
+        size: hit.area ?? this.estimateSize(hit.rooms ?? 0),
+        rent: hit.price ?? 0,
         furnishing: hit.furnishingStatus || 'Unfurnished',
-        availableSince: hit.dateInsert || new Date().toISOString(),
-        location: hit.location?.[0]?.name || area,
+        availableSince: hit.updatedAt || hit.createdAt || new Date().toISOString(), // Prefer updatedAt or createdAt
+        location: detailedLocation, // Use the more detailed location from Bayut
+        fullAddress: `${propertyName}${floor ? `, Floor ${floor}` : ''}, ${detailedLocation}, Dubai, UAE`, // Construct full address
         amenities: hit.amenities?.map((a: any) => a.text) || [],
         contactName: hit.contactName || 'Real Estate Agent',
-        contactPhone: hit.phoneNumber?.mobile || '+971-XX-XXX-XXXX',
-        contactEmail: hit.contactName ? `${hit.contactName.toLowerCase().replace(/\s+/g, '.')}@bayut.com` : 'agent@bayut.com',
+        contactPhone: hit.phoneNumber?.mobile || hit.phoneNumber?.phone || '+971-XX-XXX-XXXX',
+        contactEmail: hit.agency?.name ? `${hit.agency.name.toLowerCase().replace(/\s+/g, '.')}@realestate.ae` : 'agent@realestate.ae',
         propertyAge: hit.completionStatus || 'Ready',
-        viewType: this.getViewType(hit.location?.[0]?.name || area),
-        floorLevel: hit.floor || 0,
-        parkingSpaces: hit.parking || 0,
-        petFriendly: false,
-        nearbyAttractions: hit.location?.map((l: any) => l.name) || [],
-        description: hit.description || `${hit.categoryName} in ${area}`,
-        images: hit.photos?.map((p: any) => p.url) || [],
-        link: hit.externalID ? `https://www.bayut.com/property/details-${hit.externalID}.html` : '',
-        bhk: hit.rooms === 0 ? 'Studio' : `${hit.rooms} BHK`
+        viewType: hit.view || this.getViewType(detailedLocation),
+        floorLevel: floor, // Use parsed floor
+        parkingSpaces: hit.parkingSpaces ?? 0,
+        petFriendly: hit.isPetFriendly ?? false,
+        nearbyAttractions: bayutLocationParts, // Use location parts as nearby context
+        description: hit.descriptionHtml || hit.title || `${this.mapPropertyType(hit.categoryName)} in ${detailedLocation}`,
+        images: hit.coverPhoto ? [hit.coverPhoto.url] : (hit.photos?.map((p: any) => p.url) || []),
+        link: hit.url ? `https://www.bayut.com${hit.url}` : (hit.externalID ? `https://www.bayut.com/property/details-${hit.externalID}.html` : '#'),
+        bhk: hit.rooms === 0 ? 'Studio' : `${hit.rooms} BHK`,
+        propertyName: propertyName, // Add propertyName
       };
 
       return listing;
@@ -303,46 +310,49 @@ class RealTimeDataService {
     // Property projects by area
     const areaProjects: { [key: string]: string[] } = {
       'Dubai Marina': ['Marina Pinnacle', 'Marina Crown', 'Torch Tower', 'Princess Tower', 'Elite Residence'],
-      'Downtown Dubai': ['Burj Khalifa', 'Address Downtown', 'Boulevard Central', 'Vida Downtown', 'South Ridge'],
-      'Palm Jumeirah': ['Atlantis Residences', 'Oceana', 'Tiara Residences', 'Azure Residences', 'Anantara Residences'],
-      'Business Bay': ['Executive Towers', 'Damac Maison', 'Churchill Towers', 'Paramount Tower', 'Capital Bay'],
-      'Jumeirah Lake Towers': ['Lake Terrace', 'Goldcrest Executive', 'Saba Tower', 'Al Seef Tower', 'Indigo Tower']
+      'Downtown Dubai': ['Burj Khalifa Residences', 'The Address Downtown Apartments', 'Boulevard Central Towers', 'Vida Residence Downtown', 'South Ridge Apartments'],
+      'Palm Jumeirah': ['Atlantis The Royal Residences', 'Oceana Residences', 'Tiara Residence', 'Azure Residences', 'Anantara Residences Palm Jumeirah'],
+      'Business Bay': ['Executive Towers', 'DAMAC Maison Cour Jardin', 'Churchill Residency', 'Paramount Tower Hotel & Residences', 'Capital Bay Towers'],
+      'Jumeirah Lake Towers': ['Lake Terrace Tower', 'Goldcrest Executive', 'Saba Tower 1', 'Al Seef Tower 2', 'Indigo Tower']
     };
 
-    const projects = areaProjects[area] || areaProjects['Dubai Marina'];
+    const projects = areaProjects[area] || areaProjects['Dubai Marina']; // Fallback to Dubai Marina if area not listed
 
     for (let i = 0; i < count; i++) {
-      const bedrooms = Math.floor(Math.random() * 4);
+      const bedrooms = Math.floor(Math.random() * 4); // 0 for Studio, 1 for 1BR etc.
       const rent = this.calculateRealisticRent(area, bedrooms);
       const propertyName = projects[Math.floor(Math.random() * projects.length)];
+      const floorLevel = Math.floor(Math.random() * 30) + 1; // Random floor between 1 and 30
       
       // Calculate realistic square footage
-      const baseSqft = bedrooms === 0 ? 450 : 600 + (bedrooms * 350);
-      const sqftVariation = 0.85 + (Math.random() * 0.3); // ±15% variation
-      const actualSqft = Math.floor(baseSqft * sqftVariation);
+      const baseSqft = bedrooms === 0 ? (400 + Math.random() * 200) : (600 + (bedrooms * 300) + Math.random() * 400);
+      const actualSqft = Math.floor(baseSqft);
       
+      const constructedFullAddress = `${propertyName}, Floor ${floorLevel}, ${area}, Dubai, UAE`;
+
       listings.push({
         id: `pf-${area.replace(/\s+/g, '-').toLowerCase()}-${i}-${Date.now()}`,
-        type: bedrooms === 0 ? 'Studio' : 'Apartment',
+        type: bedrooms === 0 ? 'Studio' : (bedrooms > 2 ? 'Apartment' : 'Apartment'), // Simplified
         bedrooms,
-        bathrooms: Math.max(1, bedrooms),
+        bathrooms: Math.max(1, bedrooms + (Math.random() > 0.5 ? 1 : 0)), // Slightly variable bathrooms
         size: actualSqft,
         rent,
-        furnishing: ['Furnished', 'Unfurnished', 'Partially Furnished'][Math.floor(Math.random() * 3)] as any,
-        availableSince: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-        location: area,
+        furnishing: ['Furnished', 'Unfurnished', 'Partially Furnished'][Math.floor(Math.random() * 3)] as 'Furnished' | 'Unfurnished' | 'Partially Furnished',
+        availableSince: new Date(Date.now() - Math.random() * 45 * 24 * 60 * 60 * 1000).toISOString(), // Available within last 45 days
+        location: area, // General area
+        fullAddress: constructedFullAddress, // Constructed full address
         amenities: this.getRandomAmenities(),
-        contactName: `PropertyFinder Agent ${i + 1}`,
-        contactPhone: `+971-50-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-        contactEmail: `agent${i + 1}@propertyfinder.ae`,
-        propertyAge: Math.random() > 0.8 ? 'Under Construction' : 'Ready',
+        contactName: `PF Real Estate Agent ${i + 1}`,
+        contactPhone: `+971-50-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, '0')}`,
+        contactEmail: `agent.pf${i + 1}@exampledubairealestate.ae`,
+        propertyAge: Math.random() > 0.7 ? 'New' : `${Math.floor(Math.random()*10)+1} years old`,
         viewType: this.getViewType(area),
-        floorLevel: Math.floor(Math.random() * 30) + 1,
-        parkingSpaces: Math.floor(Math.random() * 3) + 1,
-        petFriendly: Math.random() > 0.7,
-        nearbyAttractions: this.getNearbyAttractions(area),
-        description: `Modern ${bedrooms === 0 ? 'studio' : `${bedrooms} bedroom`} apartment in ${propertyName}, ${area}`,
-        images: [],
+        floorLevel: floorLevel,
+        parkingSpaces: Math.floor(Math.random() * 2) + 1, // 1 or 2 parking spaces
+        petFriendly: Math.random() > 0.6, // 40% chance pet friendly
+        nearbyAttractions: this.getNearbyAttractions(area).slice(0, Math.floor(Math.random()*2)+1), // 1-2 nearby attractions
+        description: `A stunning ${bedrooms === 0 ? 'studio' : `${bedrooms}-bedroom`} ${bedrooms > 2 ? 'apartment' : 'apartment'} in the prestigious ${propertyName}, ${area}. This unit on floor ${floorLevel} offers ${actualSqft} sqft of living space. Contact us now!`,
+        images: [`/placeholder-property-${(i%5)+1}.jpg`], // Use existing placeholders
         link: this.generatePropertyLink(propertyName, area, bedrooms),
         bhk: bedrooms === 0 ? 'Studio' : `${bedrooms} BHK`,
         propertyName: propertyName

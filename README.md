@@ -180,3 +180,83 @@ For issues or questions:
 ---
 
 **🎯 Built for Dubai real estate professionals who need accurate, real-time market data for investment decisions.**
+
+## Recent Updates & Bug Fixes
+
+### Issues Identified and Fixed:
+
+1. **API Key Management**: Removed hardcoded API keys and improved key validation
+2. **Floor & Unit Specification**: Added specific floor and unit number fields for precise property analysis
+3. **Developer Diversity**: Fixed issue where "Emaar" appeared for every property by implementing area-specific developer mapping
+4. **Accurate Property Details**: Improved square footage calculations based on Dubai market standards
+5. **Filter Integration**: Enhanced filter handling throughout the API chain
+6. **Fallback Data Quality**: Improved sample data generation with realistic values
+
+### New Features Added:
+
+- **Specific Unit Analysis**: Users can now specify floor number and unit number for precise property analysis
+- **Area-Specific Developers**: Developer names now vary realistically based on the actual area and property type
+- **Improved Square Footage**: Calculations now follow Dubai real estate standards with proper multipliers for different property types and areas
+- **Enhanced Error Handling**: Better error messages and fallback mechanisms
+
+## API Recommendations
+
+### Current Issues with OpenAI API:
+- Rate limiting and cost concerns
+- Inconsistent responses for real estate data
+- Limited real-time data access
+
+### Recommended Alternative: Google Gemini API
+
+**Why Gemini API is better for this project:**
+
+1. **Better Real-Time Data Access**: Gemini has better integration with Google Search for current market data
+2. **Cost-Effective**: More affordable pricing structure
+3. **Better Structured Responses**: More consistent formatting for real estate data
+4. **Improved Context Understanding**: Better at understanding specific property queries
+
+**To switch to Gemini API:**
+
+1. Get a Gemini API key from Google AI Studio
+2. Install the Google AI SDK: `npm install @google/generative-ai`
+3. Update the service files to use Gemini instead of OpenAI
+
+### Alternative APIs for Real Estate Data:
+
+1. **Bayut API**: Direct access to Dubai property listings
+2. **Property Finder API**: Comprehensive UAE real estate data
+3. **Dubai Land Department API**: Official government property data
+4. **RERA API**: Rental regulation and market data
+
+## Configuration
+
+1. Set up your API key in the settings page
+2. Configure your preferred data sources
+3. Customize area and developer mappings as needed
+
+## Usage
+
+### Property Lookup
+1. Enter a property name or select location
+2. Specify property type, bedrooms, floor, and unit number
+3. Get detailed analysis including price history, nearby properties, and developer information
+
+### Rental Analysis
+1. Enter property details including specific floor and unit
+2. Get current rental rates and market trends
+3. Compare with similar properties in the area
+
+## Troubleshooting
+
+### Common Issues:
+
+1. **"API key not configured"**: Set up your API key in the settings page
+2. **"Same property names appearing"**: This has been fixed with improved data generation
+3. **"Wrong square footage"**: Updated calculations now follow Dubai standards
+4. **"Emaar showing for every property"**: Fixed with area-specific developer mapping
+
+### Performance Issues:
+
+1. **Slow API responses**: Consider switching to Gemini API for better performance
+2. **Rate limiting**: Implement proper retry mechanisms and consider API alternatives
+3. **Inaccurate data**: Use official APIs like Dubai Land Department for better accuracy

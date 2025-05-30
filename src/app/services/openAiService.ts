@@ -78,8 +78,15 @@ async function withRetry<T>(fn: () => Promise<T>, retries = API_RETRY_COUNT, del
 // Safe content generation with error handling and retry mechanism
 const safeGenerateContent = async (prompt: string): Promise<ApiResponse> => {
   try {
-    // Use the provided API key directly for enterprise-level reliability
-    const apiKey = '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';
+    // Get the API key from storage instead of using hardcoded key
+    const apiKey = apiKeyService.getStoredApiKey();
+    
+    if (!apiKey) {
+      return {
+        success: false,
+        error: 'API key not configured. Please set up your OpenAI API key to use this feature.'
+      };
+    }
     
     // Always update the API key before making a request
     updateApiKey(apiKey);
@@ -118,7 +125,7 @@ const safeGenerateContent = async (prompt: string): Promise<ApiResponse> => {
         },
         { role: 'user', content: prompt }
       ],
-      model: 'gpt-4-turbo',
+      model: 'gpt-4o-mini', // Use the more cost-effective model
       temperature: 0.2, // Lower temperature for more factual responses
       max_tokens: 1500, // Increased token limit for more detailed responses
     }));

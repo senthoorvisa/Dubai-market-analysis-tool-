@@ -11,6 +11,7 @@ interface ApiKeyMetadata {
 
 const API_KEY_STORAGE_KEY = 'openai_api_key';
 const ORG_ID_STORAGE_KEY = 'openai_org_id';
+const GEMINI_API_KEY_STORAGE_KEY = 'gemini_api_key';
 
 /**
  * Encrypts API key for secure storage
@@ -200,6 +201,60 @@ export const initializeWithDefaultKey = (): boolean => {
   return true;
 };
 
+/**
+ * Get stored Gemini API key from localStorage
+ */
+export const getGeminiApiKey = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY);
+};
+
+/**
+ * Save Gemini API key to localStorage
+ */
+export const saveGeminiApiKey = (apiKey: string): boolean => {
+  try {
+    // Validate Gemini API key format
+    if (!apiKey || apiKey.length < 20) {
+      console.error('Invalid Gemini API key format');
+      return false;
+    }
+    
+    // Store the Gemini API key
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(GEMINI_API_KEY_STORAGE_KEY, apiKey);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving Gemini API key:', error);
+    return false;
+  }
+};
+
+/**
+ * Check if Gemini API key is configured
+ */
+export const isGeminiApiKeyConfigured = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  
+  const key = localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY);
+  return !!key && key.length > 10;
+};
+
+/**
+ * Clear stored Gemini API key
+ */
+export const clearGeminiApiKey = (): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  localStorage.removeItem(GEMINI_API_KEY_STORAGE_KEY);
+};
+
 const apiKeyService = {
   saveApiKey: secureSetApiKey,
   getStoredApiKey,
@@ -209,6 +264,10 @@ const apiKeyService = {
   initializeWithDefaultKey,
   anonymizeData,
   needsKeyRotation,
+  getGeminiApiKey,
+  saveGeminiApiKey,
+  isGeminiApiKeyConfigured,
+  clearGeminiApiKey,
 };
 
 export default apiKeyService; 

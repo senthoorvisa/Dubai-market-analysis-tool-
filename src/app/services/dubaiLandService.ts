@@ -373,7 +373,10 @@ function generateRealisticDevelopers(developerName?: string): DLDDeveloper[] {
   const developers: DLDDeveloper[] = [];
   const developerNames = developerName ? [developerName] : [
     'Emaar Properties', 'DAMAC Properties', 'Nakheel', 'Dubai Properties', 
-    'Meraas', 'Sobha Realty', 'Azizi Developments', 'Danube Properties'
+    'Meraas', 'Sobha Realty', 'Azizi Developments', 'Danube Properties',
+    'Omniyat', 'Ellington Properties', 'Binghatti Developers', 'Reportage Properties',
+    'Mag Group', 'Deyaar Development', 'Wasl Properties', 'Aldar Properties',
+    'Select Group', 'Tiger Properties', 'Prescott Group', 'Gemini Property Developers'
   ];
 
   developerNames.forEach((name, index) => {

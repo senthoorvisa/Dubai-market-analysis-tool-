@@ -7,14 +7,13 @@ import {
   FaArrowLeft, FaSearch, FaSpinner, FaHome, FaBed, FaBath, 
   FaRulerCombined, FaBuilding, FaCalendarAlt, FaChartLine,
   FaMapMarkerAlt, FaTag, FaExternalLinkAlt, FaChevronRight, FaChevronLeft,
-  FaFilter
+  FaFilter, FaBrain
 } from 'react-icons/fa';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer, ReferenceLine, BarChart, Bar
 } from 'recharts';
-import { getPropertyInfo } from '../services/openAiService';
-import apiKeyService from '../services/apiKeyService';
+import { getPropertyInfoWithScraping } from '../services/geminiService';
 import { fetchLivePropertyData } from './fetchLivePropertyData';
 
 // API response structure
@@ -22,7 +21,6 @@ interface PricePoint {
   year: number;
   price: number;
 }
-
 
 interface PropertyMetadata {
   id: string;
@@ -33,13 +31,14 @@ interface PropertyMetadata {
   developer: string;
   purchaseYear: number;
   location: string;
+  price: number;
+  fullAddress: string;
   status: 'Completed' | 'Under Construction' | 'Planned';
   coordinates: {
     lat: number;
     lng: number;
   };
 }
-
 
 interface NearbyProperty {
   id: string;
@@ -53,8 +52,8 @@ interface NearbyProperty {
   baths: number;
   sqft: number;
   developer: string;
+  address?: string;
 }
-
 
 interface OngoingProject {
   id: string;
@@ -63,7 +62,6 @@ interface OngoingProject {
   expectedCompletion: string; // Year or date
   developer: string;
 }
-
 
 interface DeveloperInfo {
   id: string;
@@ -79,7 +77,6 @@ interface DeveloperInfo {
   }>;
 }
 
-
 interface PropertyData {
   metadata: PropertyMetadata;
   priceHistory: PricePoint[];
@@ -87,7 +84,6 @@ interface PropertyData {
   ongoingProjects: OngoingProject[];
   developer: DeveloperInfo;
 }
-
 
 // Add this helper function before the component declaration
 function generatePopularProjects(developerName: string) {
@@ -108,10 +104,8 @@ function generatePopularProjects(developerName: string) {
     });
   }
 
-  
   return projects;
 }
-
 
 // Define property search criteria
 interface PropertySearchCriteria {
@@ -120,10 +114,12 @@ interface PropertySearchCriteria {
   bedrooms?: number;
   priceRange?: string;
   amenities?: string[];
+  floorNumber?: string;
+  unitNumber?: string;
 }
 
-
-// Dubai locations for dropdown
+// Dubai locations for dropdown - ENSURE THIS BLOCK IS COMPLETELY DELETED
+/*
 const dubaiLocations = [
   'Dubai Marina',
   'Downtown Dubai',
@@ -141,6 +137,7 @@ const dubaiLocations = [
   'Emirates Hills',
   'Jumeirah Village Circle'
 ];
+*/
 
 // Property types for dropdown
 const propertyTypes = [
@@ -162,9 +159,11 @@ const bedroomOptions = ['Studio', '1', '2', '3', '4', '5+'];
 export default function PropertyLookupRefined() {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
-  const [location, setLocation] = useState<string>('');
+  // const [location, setLocation] = useState<string>(''); // ENSURE THIS LINE IS DELETED OR COMMENTED
   const [propertyType, setPropertyType] = useState<string>('');
   const [bedrooms, setBedrooms] = useState<string>('');
+  const [floorNumber, setFloorNumber] = useState<string>('');
+  const [unitNumber, setUnitNumber] = useState<string>('');
   const [priceEstimate, setPriceEstimate] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,34 +173,7 @@ export default function PropertyLookupRefined() {
   const [developerDetailsExpanded, setDeveloperDetailsExpanded] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
-  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
-
-  // Check API key configuration on component mount
-  useEffect(() => {
-    const checkApiKey = () => {
-      // First, try to initialize with default key
-      try {
-        apiKeyService.initializeWithDefaultKey();
-      } catch (error) {
-        console.error('Failed to initialize default API key:', error);
-      }
-      
-      // Then check if API key is available
-      const apiKey = apiKeyService.getStoredApiKey();
-      console.log('API Key check:', {
-        hasApiKey: !!apiKey,
-        keyLength: apiKey?.length || 0,
-        keyPrefix: apiKey?.substring(0, 10) || 'none'
-      });
-      setIsApiKeyConfigured(!!apiKey);
-    };
-    
-    checkApiKey();
-    
-    // Check periodically in case user configures API key in another tab
-    const interval = setInterval(checkApiKey, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const [geminiAnalysis, setGeminiAnalysis] = useState<string>('');
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -217,71 +189,75 @@ export default function PropertyLookupRefined() {
     return ((current - original) / original * 100).toFixed(2);
   };
   
-  // Handle search submission
+  // Handle search submission with Gemini AI
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!searchTerm.trim() && !location) {
-      setError('Please enter a search term or select a location');
+    if (!searchTerm.trim()) {
+      setError('Please enter a search term (e.g., property name, address, or area)');
       return;
     }
     
     setLoading(true);
-    setError('');
+    setError(null); // Clear previous errors
     setPropertyData(null);
+    setGeminiAnalysis('');
     
     try {
-      // Ensure API key is initialized
-      apiKeyService.initializeWithDefaultKey();
+      console.log('🔮 Starting AI property search with main search term:', { 
+        searchTerm, 
+        propertyType, 
+        bedrooms, 
+        floorNumber, 
+        unitNumber 
+      });
       
-      // Check if API key is configured - REQUIRED for data access
-      const apiKey = apiKeyService.getStoredApiKey();
-      
-      if (!apiKey) {
-        setError('OpenAI API key is required to access property data. Please configure your API key in the settings page to continue.');
-        setLoading(false);
-        return;
-      }
-      
-      console.log('API Key configured:', !!apiKey);
-      console.log('Search parameters:', { searchTerm, location, propertyType, bedrooms });
-      
-      // Get AI-powered information about this property if filters are set
-      if (location && propertyType && bedrooms) {
+      // Get AI-powered information using Gemini
+      if (searchTerm.trim() && propertyType && bedrooms) {
         const criteria: PropertySearchCriteria = {
-          location,
+          location: searchTerm,
           propertyType, 
-          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
+          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10),
+          floorNumber,
+          unitNumber
         };
         
         try {
-          const aiResponse = await getPropertyInfo(criteria);
+          console.log('🔮 Using Gemini AI for enhanced web scraping with criteria:', criteria);
+          const aiResponse = await getPropertyInfoWithScraping(criteria);
           
-          if (!aiResponse.success) {
-            console.error('Error getting AI property info:', aiResponse.error);
-            setError(`AI API Error: ${aiResponse.error}`);
-            setLoading(false);
-            return;
+          if (aiResponse && aiResponse.success) {
+            console.log('✅ Gemini analysis completed successfully');
+            setGeminiAnalysis(aiResponse.data || '');
+          } else {
+            console.warn('Gemini AI warning:', aiResponse?.error);
+            setGeminiAnalysis('Unable to fetch real-time property data at this moment. Please try again.');
           }
         } catch (err) {
-          console.error('Error calling OpenAI API:', err);
-          setError('Failed to connect to AI service. Please check your API key.');
-          setLoading(false);
-          return;
+          console.warn('Gemini AI call failed:', err);
+          setGeminiAnalysis('Unable to fetch real-time property data at this moment. Please try again.');
         }
       }
       
-      // Use the fetchLivePropertyData function to get real-time data
-      console.log('Fetching property data with:', { searchTerm, location, propertyType, bedrooms });
-      const data = await fetchLivePropertyData(searchTerm || location, {
-        location,
+      // Use the fetchLivePropertyData function to get structured data
+      console.log('Fetching live property data with (searchTerm for location query):', { searchTerm, propertyType, bedrooms, floorNumber, unitNumber });
+      
+      const data = await fetchLivePropertyData(searchTerm, {
         propertyType,
-        bedrooms
+        bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10),
+        floorNumber,
+        unitNumber
       });
       
+      console.log('Successfully received property data:', data ? 'Yes' : 'No');
       setPropertyData(data);
     } catch (err) {
-      setError('Failed to fetch property data. Please try again.');
+      if (err instanceof Error && (err.message === 'API_KEY_MISSING' || err.message === 'API_KEY_MISSING_FOR_FALLBACK')) {
+        setError('Gemini API key is not configured. Please set it up in Settings to fetch live property data.');
+        setPropertyData(null); // Ensure no stale data is shown
+      } else {
+        setError('Failed to fetch property data. Please try again.');
+      }
       console.error('Error fetching property data:', err);
     } finally {
       setLoading(false);
@@ -290,86 +266,48 @@ export default function PropertyLookupRefined() {
   
   // Handle selecting a nearby property
   const handleNearbyPropertySelect = async (propertyId: string) => {
-    // Find the property in the nearby list
     const selectedProperty = propertyData?.nearby.find(p => p.id === propertyId);
-    
-    if (selectedProperty) {
-      // Update search term with the selected property's name
-      setSearchTerm(selectedProperty.name);
+    if (!selectedProperty) return;
+
+    setSearchTerm(selectedProperty.name); // Set search term to the selected nearby property's name
+    // setLocation(''); // REMOVED
+    setPropertyType(
+      selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
+      selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
+      selectedProperty.sqft > 3000 ? 'Villa' : 'Apartment' // Basic guess
+    );
+    setBedrooms(selectedProperty.beds > 0 ? selectedProperty.beds.toString() : 'Studio');
+    setFloorNumber(''); 
+    setUnitNumber('');
+    setPropertyData(null); 
+    setLoading(true);
+    setError(null);
+    setGeminiAnalysis('');
+    setChartZoom(null);
+    setDeveloperDetailsExpanded(false);
+
+    try {
+      console.log('Fetching details for selected nearby property using its name as search term:', selectedProperty.name);
+      const data = await fetchLivePropertyData(selectedProperty.name, {
+        propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' : 'Apartment', // Infer
+        bedrooms: selectedProperty.beds > 0 ? selectedProperty.beds.toString() : 'Studio',
+      });
+      setPropertyData(data);
+
+      // Optionally, trigger Gemini analysis for the selected nearby property as well
+      // For now, focus on displaying its direct data
       
-      // Reset filters to match this property
-      setLocation(selectedProperty.name.split(' ')[0]);
-      setPropertyType(
-        selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
-        selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
-        selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
-        selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
-        'Apartment' // Default to apartment if we can't determine
-      );
-      setBedrooms(selectedProperty.beds === 0 ? 'Studio' : selectedProperty.beds.toString());
-      
-      // Trigger search for this property
-      setLoading(true);
-      setError(null);
-      setPropertyData(null);
-      setChartZoom(null);
-      setDeveloperDetailsExpanded(false);
-      
-      try {
-        // Check if API key is configured
-        const apiKey = apiKeyService.getStoredApiKey();
-        if (!apiKey) {
-          setError('OpenAI API key not configured. Please set up your API key in settings.');
-          setLoading(false);
-          return;
-        }
-
-
-        // Get AI-powered information about this property
-        const criteria: PropertySearchCriteria = {
-          location: selectedProperty.name.split(' ')[0],
-          propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
-                       selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
-                       selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
-                       selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
-                       'Apartment',
-          bedrooms: selectedProperty.beds
-        };
-        
-        try {
-          const aiResponse = await getPropertyInfo(criteria);
-          
-          if (!aiResponse.success) {
-            console.error('Error getting AI property info:', aiResponse.error);
-          }
-
-        } catch (err) {
-          console.error('Error calling OpenAI API:', err);
-        }
-
-
-        // In a real implementation, this would call the backend API
-        // For demo purposes, use the live data
-        const liveData: PropertyData = await fetchLivePropertyData(selectedProperty.name, {
-          location: selectedProperty.name.split(' ')[0],
-          propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' :
-                     selectedProperty.name.toLowerCase().includes('apartment') ? 'Apartment' :
-                     selectedProperty.name.toLowerCase().includes('townhouse') ? 'Townhouse' :
-                     selectedProperty.name.toLowerCase().includes('penthouse') ? 'Penthouse' :
-                     'Apartment',
-          bedrooms: selectedProperty.beds
-        });
-        
-        setPropertyData(liveData);
-      } catch (err) {
-        setError('Failed to fetch property data. Please try again.');
-        console.error('Error fetching property data:', err);
-      } finally {
-        setLoading(false);
+    } catch (err) {
+      if (err instanceof Error && (err.message === 'API_KEY_MISSING' || err.message === 'API_KEY_MISSING_FOR_FALLBACK')) {
+        setError('Gemini API key is not configured. Please set it up in Settings to fetch live property data.');
+        setPropertyData(null);
+      } else {
+        setError('Failed to fetch property data for selected property.');
       }
-
+      console.error('Error fetching selected property data:', err);
+    } finally {
+      setLoading(false);
     }
-
   };
   
   // Reset chart zoom
@@ -390,46 +328,35 @@ export default function PropertyLookupRefined() {
   // Update price estimate when filters change
   useEffect(() => {
     const updatePriceEstimate = async () => {
-      if (location && propertyType && bedrooms) {
+      if (searchTerm.trim() && propertyType && bedrooms) { 
         setFetchingPrice(true);
         try {
-          const criteria: PropertySearchCriteria = {
-            location,
+          const criteria: PropertySearchCriteria = { 
+            location: searchTerm,
             propertyType,
             bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)
           };
-
-          const response = await getPropertyInfo(criteria);
-          
-          if (response.success && response.data) {
-            // Extract price range from the response - this is a simplification
-            // In a real implementation, you would need to parse the AI response more carefully
-            const priceMatch = response.data.match(/AED\s*([\d,]+)\s*-\s*AED\s*([\d,]+)/i);
-            if (priceMatch) {
-              setPriceEstimate(`${priceMatch[1]} - ${priceMatch[2]} AED`);
-            } else {
-              setPriceEstimate('Price estimate available upon search');
-            }
-
-          } else {
-            setPriceEstimate('Price estimate available upon search');
-          }
-
+          console.log('Criteria for price estimate (if API was active):', criteria);
+          setPriceEstimate('Refine search for price estimate');
         } catch (err) {
           console.error('Error fetching price estimate:', err);
-          setPriceEstimate('Price estimate available upon search');
+          setPriceEstimate('Could not fetch estimate');
         } finally {
           setFetchingPrice(false);
         }
-
       } else {
         setPriceEstimate('');
       }
-
     };
 
-    updatePriceEstimate();
-  }, [location, propertyType, bedrooms]);
+    // Debounce or delay this call if it's too frequent on type
+    const timerId = setTimeout(() => {
+        updatePriceEstimate();
+    }, 500); // Example debounce
+    
+    return () => clearTimeout(timerId);
+
+  }, [searchTerm, propertyType, bedrooms]);
 
   return (
     <div className="min-h-screen bg-anti-flash-white">
@@ -448,34 +375,27 @@ export default function PropertyLookupRefined() {
         {/* Search Bar and Filters */}
 
         <div className="mb-6">
-          <form onSubmit={handleSearch}>
-            <div className="flex flex-col gap-4 bg-white p-4 rounded-lg shadow-sm">
-              {/* Search Input */}
-
-              <div className="relative">
-                <input
-                  type="text"
-                  className="w-full p-3 pl-10 bg-white border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany"
-                  placeholder="Enter property name or ID"
-                  value={searchTerm}
-
-                  onChange={(e) => setSearchTerm(e.target.value)}
-
-                  disabled={loading}
-
-                  list="property-suggestions"
-                />
-                <datalist id="property-suggestions">
-                  <option value="Marina Towers" />
-                  <option value="Burj Residences" />
-                  <option value="Palm Jumeirah Villa" />
-                  <option value="Downtown Lofts" />
-                  <option value="Business Bay Apartment" />
-                  <option value="Dubai Hills Estate" />
-                  <option value="Dubai Marina Penthouse" />
-                  <option value="Emirates Hills Villa" />
-                </datalist>
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tuscany" />
+          <form onSubmit={handleSearch} className="space-y-6">
+            {/* Search Filters and Inputs */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 items-end">
+              {/* Search Term Input - Spans 2 columns on medium, 3 on large if filters are hidden */}
+              <div className={filtersExpanded ? "md:col-span-3" : "md:col-span-3"}> {/* Always span 3 for simplicity now */}
+                <label htmlFor="searchTerm" className="block text-lg font-semibold text-dubai-blue-900 mb-2">
+                  Search Property
+                </label>
+                <div className="relative">
+                  <input
+                    id="searchTerm"
+                    type="text"
+                    className="w-full p-3 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white pl-10"
+                    placeholder="Enter Property Name, Address, Area, e.g., Princess Tower"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    disabled={loading}
+                  />
+                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Examples: "Princess Tower", "Downtown Dubai 2 bedroom", "Sheikh Zayed Road apartment with sea view"</p>
               </div>
 
               {/* Filter Toggle Button */}
@@ -514,34 +434,7 @@ export default function PropertyLookupRefined() {
 
               {filtersExpanded && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-almond/10 rounded-lg">
-                  {/* Location Filter */}
-
-                  <div>
-                    <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
-                      Location
-                    </label>
-                    <select
-                      className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
-                      value={location}
-
-                      onChange={(e) => setLocation(e.target.value)}
-
-                      disabled={loading}
-
-                    >
-                      <option value="">Select Location</option>
-                      {dubaiLocations.map((loc) => (
-                        <option key={loc} value={loc}>
-                          {loc}
-
-                        </option>
-                      ))}
-
-                    </select>
-                  </div>
-
                   {/* Property Type Filter */}
-
                   <div>
                     <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
                       Property Type
@@ -549,25 +442,19 @@ export default function PropertyLookupRefined() {
                     <select
                       className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
                       value={propertyType}
-
                       onChange={(e) => setPropertyType(e.target.value)}
-
                       disabled={loading}
-
                     >
                       <option value="">Select Type</option>
                       {propertyTypes.map((type) => (
                         <option key={type} value={type}>
                           {type}
-
                         </option>
                       ))}
-
                     </select>
                   </div>
 
                   {/* Bedrooms Filter */}
-
                   <div>
                     <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
                       Bedrooms
@@ -575,22 +462,64 @@ export default function PropertyLookupRefined() {
                     <select
                       className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
                       value={bedrooms}
-
                       onChange={(e) => setBedrooms(e.target.value)}
-
                       disabled={loading}
-
                     >
                       <option value="">Select Bedrooms</option>
                       {bedroomOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
-
                         </option>
                       ))}
-
                     </select>
                   </div>
+
+                  {/* Floor Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
+                      Floor Number
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
+                      value={floorNumber}
+                      onChange={(e) => setFloorNumber(e.target.value)}
+                      placeholder="e.g., 15, G, M"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {/* Unit Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-dubai-blue-900 mb-1">
+                      Unit Number
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-almond rounded-lg focus:outline-none focus:ring-1 focus:ring-tuscany bg-white"
+                      value={unitNumber}
+                      onChange={(e) => setUnitNumber(e.target.value)}
+                      placeholder="e.g., 1501, A, 01"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {/* Property Specification Display */}
+                  {(floorNumber || unitNumber) && (
+                    <div className="md:col-span-3">
+                      <div className="bg-tuscany/10 border border-tuscany/20 rounded-lg p-3">
+                        <div className="flex items-center text-sm text-dubai-blue-900">
+                          <FaBuilding className="mr-2 text-tuscany" />
+                          <span className="font-medium">Specific Unit: </span>
+                          <span className="ml-1">
+                            {floorNumber && `Floor ${floorNumber}`}
+                            {floorNumber && unitNumber && ', '}
+                            {unitNumber && `Unit ${unitNumber}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -612,13 +541,35 @@ export default function PropertyLookupRefined() {
           </form>
         </div>
         
-                {/* API Key Warning */}        {!isApiKeyConfigured && (          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">            <div className="flex items-center">              <div className="flex-shrink-0">                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />                </svg>              </div>              <div className="ml-3">                <h3 className="text-sm font-medium text-yellow-800">                  OpenAI API Key Required                </h3>                <div className="mt-2 text-sm text-yellow-700">                  <p>                    This application requires an OpenAI API key to access real-time property data and AI-powered insights.                     Please configure your API key in the{' '}                    <Link href="/settings" className="font-medium underline hover:text-yellow-600">                      Settings page                    </Link>{' '}                    to continue.                  </p>                </div>              </div>            </div>          </div>        )}        {/* Error Message */}        {error && (          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600">            {error}          </div>        )}
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-600">
+            {error}
+          </div>
+        )}
         
         {/* Loading Indicator */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-12">
             <FaSpinner className="animate-spin text-4xl text-tuscany mb-4" />
             <p className="text-dubai-blue-700">Fetching property information...</p>
+          </div>
+        )}
+        
+        {/* Gemini AI Analysis Display */}
+        {!loading && geminiAnalysis && (
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-sm border border-purple-200 overflow-hidden mb-6">
+            <div className="p-4 border-b border-purple-200 flex items-center">
+              <FaBrain className="text-purple-600 mr-2" />
+              <h3 className="text-xl font-semibold text-purple-900">Gemini AI Real-Time Property Analysis</h3>
+            </div>
+            <div className="p-6">
+              <div className="prose prose-purple max-w-none">
+                <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+                  {geminiAnalysis}
+                </div>
+              </div>
+            </div>
           </div>
         )}
         
@@ -704,21 +655,18 @@ export default function PropertyLookupRefined() {
             {/* Key Facts Panel */}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Current Price */}
-
+              {/* Current Price - MODIFIED */}
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaTag className="text-tuscany mr-2" />
-                  <h4 className="text-sm font-semibold text-dubai-blue-700">Current Price</h4>
+                  <h4 className="text-sm font-semibold text-dubai-blue-700">Current Market Price</h4>
                 </div>
                 <p className="text-xl font-bold text-dubai-blue-900">
-                  {formatCurrency(propertyData.priceHistory[propertyData.priceHistory.length - 1].price)}
-
+                  {propertyData.metadata.price ? formatCurrency(propertyData.metadata.price) : 'N/A'}
                 </p>
               </div>
               
               {/* Accommodates */}
-
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaHome className="text-tuscany mr-2" />
@@ -728,38 +676,36 @@ export default function PropertyLookupRefined() {
                   {propertyData.metadata.beds} beds • {propertyData.metadata.baths} baths • {propertyData.metadata.sqft.toLocaleString()} sqft
                 </p>
               </div>
-              
-              {/* Developer */}
 
+              {/* Developer - UNCHANGED (data source, but ensure it's after Accommodates) */}
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
                   <FaBuilding className="text-tuscany mr-2" />
                   <h4 className="text-sm font-semibold text-dubai-blue-700">Developer</h4>
                 </div>
+                {/* Assuming the button/link to developer tab is here */}
                 <button 
                   className="text-xl font-bold text-dubai-blue-900 hover:text-tuscany transition-colors flex items-center"
                   onClick={() => {
                     setSelectedTab('developer');
-                    setDeveloperDetailsExpanded(true);
+                    // Potentially scroll to developer section or handle tab change
+                    const developerSection = document.getElementById('developer-details-section');
+                    if (developerSection) developerSection.scrollIntoView({ behavior: 'smooth' });
                   }}
-
                 >
-                  {propertyData.metadata.developer}
-
-                  <FaExternalLinkAlt className="ml-2 text-sm text-tuscany" />
+                  {propertyData.metadata.developer || 'N/A'}
+                  <FaChevronRight className="ml-2 opacity-50" />
                 </button>
               </div>
               
-              {/* Purchase Year */}
-
+              {/* Full Address - NEW */}
               <div className="bg-beige rounded-lg shadow-sm border border-almond p-4">
                 <div className="flex items-center mb-2">
-                  <FaCalendarAlt className="text-tuscany mr-2" />
-                  <h4 className="text-sm font-semibold text-dubai-blue-700">Purchase Year</h4>
+                  <FaMapMarkerAlt className="text-tuscany mr-2" />
+                  <h4 className="text-sm font-semibold text-dubai-blue-700">Full Address</h4>
                 </div>
-                <p className="text-xl font-bold text-dubai-blue-900">
-                  {propertyData.metadata.purchaseYear}
-
+                <p className="text-base text-dubai-blue-900"> {/* text-base for potentially longer address */}
+                  {propertyData.metadata.fullAddress || 'Address not available'}
                 </p>
               </div>
             </div>
@@ -966,10 +912,9 @@ export default function PropertyLookupRefined() {
                         <tbody>
                           <tr className="border-b border-almond">
                             <td className="py-3 px-4 font-medium text-dubai-blue-900">
-                              {propertyData.developer.name}
-
+                              {propertyData.developer.name || 'N/A'}
                               <a 
-                                href={`https://${propertyData.developer.name.toLowerCase().replace(/\s+/g, '')}.ae`} 
+                                href={`https://${(propertyData.developer.name || '').toLowerCase().replace(/\s+/g, '')}.ae`}
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="ml-2 text-tuscany hover:underline text-sm inline-flex items-center"
@@ -977,9 +922,9 @@ export default function PropertyLookupRefined() {
                                 Visit Website <FaExternalLinkAlt className="ml-1 text-xs" />
                               </a>
                             </td>
-                            <td className="py-3 px-4">{propertyData.developer.headquarters}</td>
-                            <td className="py-3 px-4">{propertyData.developer.totalProjects}</td>
-                            <td className="py-3 px-4">{propertyData.developer.averageROI.toFixed(2)}%</td>
+                            <td className="py-3 px-4">{propertyData.developer.headquarters || 'Location not available'}</td>
+                            <td className="py-3 px-4">{propertyData.developer.totalProjects || 'N/A'}</td>
+                            <td className="py-3 px-4">{propertyData.developer.averageROI?.toFixed(2) || 'N/A'}%</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1026,7 +971,7 @@ export default function PropertyLookupRefined() {
                         <div>
                           <h5 className="text-lg font-semibold text-dubai-blue-900 mb-3">Popular Projects</h5>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {generatePopularProjects(propertyData.developer.name).map((project, index) => (
+                            {generatePopularProjects(propertyData.developer.name || '').map((project, index) => (
                               <div key={index} className="bg-white border border-almond rounded-lg p-4">
                                 <h6 className="font-medium text-dubai-blue-900 mb-2">{project.name}</h6>
                                 <div className="text-sm text-dubai-blue-700 space-y-1">
@@ -1106,6 +1051,11 @@ export default function PropertyLookupRefined() {
                       >
                         <div className="p-4">
                           <h4 className="text-lg font-semibold text-dubai-blue-900 mb-2">{property.name}</h4>
+                          {property.address && (
+                            <p className="text-sm text-gray-600 mb-2">
+                              📍 {property.address}
+                            </p>
+                          )}
                           <p className="flex items-center text-sm text-dubai-blue-700 mb-3">
                             <FaMapMarkerAlt className="mr-1 text-tuscany" />
                             {property.distance.toFixed(1)} km away
@@ -1140,6 +1090,11 @@ export default function PropertyLookupRefined() {
                                 <FaBath className="mx-1" /> {property.baths} | 
                                 <span className="ml-1">{property.sqft.toLocaleString()} sqft</span>
                               </span>
+                            </div>
+                            
+                            <div className="flex justify-between text-sm">
+                              <span className="text-dubai-blue-700">Developer</span>
+                              <span className="font-medium text-tuscany">{property.developer}</span>
                             </div>
                           </div>
                         </div>

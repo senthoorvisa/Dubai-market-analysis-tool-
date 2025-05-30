@@ -12,6 +12,8 @@ interface RentalSearchCriteria {
   propertyType?: string;
   bedrooms?: number;
   propertyName?: string; // Added for specific property search
+  floorNumber?: string;
+  unitNumber?: string;
 }
 
 export default function RentalAnalysis() {
@@ -19,6 +21,8 @@ export default function RentalAnalysis() {
   const [propertyType, setPropertyType] = useState<string>('');
   const [bedrooms, setBedrooms] = useState<string>('');
   const [propertyName, setPropertyName] = useState<string>('');
+  const [floorNumber, setFloorNumber] = useState<string>('');
+  const [unitNumber, setUnitNumber] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [rentalAnalysis, setRentalAnalysis] = useState<string | null>(null);
@@ -209,7 +213,9 @@ export default function RentalAnalysis() {
         location: location,
         propertyType: propertyType || undefined,
         bedrooms: bedrooms ? (bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10)) : undefined,
-        propertyName: propertyName || undefined
+        propertyName: propertyName || undefined,
+        floorNumber: floorNumber || undefined,
+        unitNumber: unitNumber || undefined
       };
       
       // Call the OpenAI API with instructions to search for real market data
@@ -341,6 +347,38 @@ export default function RentalAnalysis() {
               </div>
             </div>
             
+            {/* Floor Number Filter */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Floor Number
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={floorNumber}
+                  onChange={(e) => setFloorNumber(e.target.value)}
+                  placeholder="Enter floor number"
+                  className="w-full py-3 pl-10 pr-4 rounded-lg border border-gray-300 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
+            {/* Unit Number Filter */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Unit Number
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={unitNumber}
+                  onChange={(e) => setUnitNumber(e.target.value)}
+                  placeholder="Enter unit number"
+                  className="w-full py-3 pl-10 pr-4 rounded-lg border border-gray-300 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
             {/* Search Button */}
             <div className="mt-6 flex justify-end">
               <button
@@ -394,6 +432,11 @@ export default function RentalAnalysis() {
             <FaChartLine className="mr-2 text-blue-600" /> 
             Current Rental Analysis
             {propertyName && `: ${propertyName}`}
+            {(floorNumber || unitNumber) && propertyName && (
+              <span className="text-lg font-normal text-gray-600 ml-2">
+                ({floorNumber && `Floor ${floorNumber}`}{floorNumber && unitNumber && ', '}{unitNumber && `Unit ${unitNumber}`})
+              </span>
+            )}
             {location && !propertyName && `: ${location}`}
             {propertyType && !propertyName && ` - ${propertyType}`}
             {bedrooms && !propertyName && ` - ${bedrooms} ${bedrooms === '1' ? 'Bedroom' : 'Bedrooms'}`}

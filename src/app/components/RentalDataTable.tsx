@@ -106,6 +106,7 @@ const RentalDataTable = () => {
   // State for area selection
   const [selectedArea, setSelectedArea] = useState<string>('Dubai Marina');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showFilterInputs, setShowFilterInputs] = useState(false); // New state for filter visibility
   
   // State for filters
   const [filters, setFilters] = useState<FilterState>({
@@ -238,25 +239,22 @@ const RentalDataTable = () => {
       });
       
     } catch (err) {
-      console.error('Error fetching rental listings:', err);
-      setError('Failed to load rental listings. Please try again.');
+      if (err instanceof Error && err.message === 'API_KEY_MISSING') {
+        setError('Gemini API key is not configured. Please set it up in Settings to fetch rental data.');
+        setListings([]); // Clear any existing listings
+        setTotalListings(0);
+      } else {
+        setError('Failed to fetch rental data. Please check your connection or API key.');
+      }
+      console.error('Error fetching rental data:', err);
       
-      // Update metrics with error state
-      setDataQualityMetrics(prev => prev ? {
-        ...prev,
-        errorRate: 1,
-        averageResponseTime: 0
-      } : {
-        totalListings: 0,
-        confidence: 0,
-        sources: [],
-        lastUpdated: new Date().toISOString(),
-        dataSource: 'fallback' as const,
-        validationPassed: 0,
-        validationFailed: 1,
-        averageResponseTime: 0,
-        errorRate: 1
-      });
+      // Retry mechanism (optional)
+      // if (attempt < 3) {
+      //   console.log(`Retrying rental data fetch, attempt ${attempt + 1}`);
+      //   setTimeout(() => fetchData(attempt + 1), 2000);
+      // } else {
+      //   setError('Failed to fetch rental data after multiple attempts.');
+      // }
     } finally {
       setLoading(false);
     }
@@ -612,151 +610,169 @@ const RentalDataTable = () => {
         </div>
       )}
       
-      {/* Filters Section */}
+      {/* New Header and Filter Toggle Area */}
       <div className="p-4 bg-beige rounded-t-lg border-b border-almond">
-        <div className="flex flex-wrap items-end gap-4">
-          {/* Property Type */}
-          <div className="w-full sm:w-auto">
-            <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-              Property Type
-            </label>
-            <select 
-              className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
-              value={filters.propertyType}
-              onChange={(e) => handleFilterChange('propertyType', e.target.value)}
-            >
-              <option value="">All Types</option>
-              {propertyTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+          <div>
+            <h2 className="text-dubai-blue-900 text-xl font-bold">
+              Rental Listings: <span className="text-tuscany">{selectedArea || 'All Areas'}</span>
+            </h2>
+            {filters.propertyType && (
+              <span className="text-sm text-dubai-blue-700 block">Type: {filters.propertyType}</span>
+            )}
           </div>
-          
-          {/* Bedrooms */}
-          <div className="w-full sm:w-auto">
-            <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-              Bedrooms
-            </label>
-            <select 
-              className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
-              value={filters.bedrooms}
-              onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
-            >
-              <option value="">All</option>
-              {bedroomOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Size Min/Max */}
-          <div className="w-full sm:w-auto">
-            <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-              Size (sqft)
-            </label>
-            <div className="flex space-x-2">
-              <input 
-                type="number"
-                placeholder="Min"
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                value={filters.sizeMin}
-                onChange={(e) => handleFilterChange('sizeMin', e.target.value)}
-              />
-              <input 
-                type="number"
-                placeholder="Max"
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                value={filters.sizeMax}
-                onChange={(e) => handleFilterChange('sizeMax', e.target.value)}
-              />
-            </div>
-          </div>
-          
-          {/* Rent Min/Max */}
-          <div className="w-full sm:w-auto">
-            <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-              Rent (AED/month)
-            </label>
-            <div className="flex space-x-2">
-              <input 
-                type="number"
-                placeholder="Min"
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                value={filters.rentMin}
-                onChange={(e) => handleFilterChange('rentMin', e.target.value)}
-              />
-              <input 
-                type="number"
-                placeholder="Max"
-                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
-                value={filters.rentMax}
-                onChange={(e) => handleFilterChange('rentMax', e.target.value)}
-              />
-            </div>
-          </div>
-          
-          {/* Furnishing */}
-          <div className="w-full sm:w-auto">
-            <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-              Furnishing
-            </label>
-            <select 
-              className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
-              value={filters.furnishing}
-              onChange={(e) => handleFilterChange('furnishing', e.target.value)}
-            >
-              <option value="">All</option>
-              {furnishingOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Area selection */}
-          <div className="w-full sm:w-auto">
-            <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
-              Area
-            </label>
-            <div className="relative flex">
-              <input
-                type="text"
-                className="bg-white border border-almond rounded-l-md pl-10 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
-                value={searchQuery}
-                onChange={handleAreaChange}
-                onKeyDown={handleSearchKeyPress}
-                placeholder="Search areas..."
-              />
-              <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
-              
-              <button
-                onClick={handleManualSearch}
-                className="bg-tuscany text-white px-3 py-2 rounded-r-md hover:bg-tuscany/80 transition-colors border border-tuscany"
-                type="button"
-              >
-                Search
-              </button>
-              
-              {/* Autocomplete dropdown */}
-              {searchQuery && !popularAreas.includes(searchQuery) && (
-                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-y-auto border border-almond top-full left-0">
-                  {popularAreas
-                    .filter(area => area.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((area, index) => (
-                      <div
-                        key={index}
-                        className="px-3 py-2 text-sm cursor-pointer hover:bg-beige"
-                        onClick={() => handleAreaSelect(area)}
-                      >
-                        {area}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <button 
+            onClick={() => setShowFilterInputs(!showFilterInputs)}
+            className="btn-modern flex items-center text-sm py-2 px-3"
+          >
+            <FaFilter className="mr-2" /> {showFilterInputs ? 'Hide Filters' : 'Show Filters'}
+          </button>
         </div>
+
+        {/* Collapsible Filters Section */}
+        {showFilterInputs && (
+          <div className="flex flex-wrap items-end gap-4 pt-4 border-t border-dashed border-almond/50">
+            {/* Property Type */}
+            <div className="w-full sm:w-auto">
+              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
+                Property Type
+              </label>
+              <select 
+                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                value={filters.propertyType}
+                onChange={(e) => handleFilterChange('propertyType', e.target.value)}
+              >
+                <option value="">All Types</option>
+                {propertyTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Bedrooms */}
+            <div className="w-full sm:w-auto">
+              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
+                Bedrooms
+              </label>
+              <select 
+                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                value={filters.bedrooms}
+                onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
+              >
+                <option value="">All</option>
+                {bedroomOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Size Min/Max */}
+            <div className="w-full sm:w-auto">
+              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
+                Size (sqft)
+              </label>
+              <div className="flex space-x-2">
+                <input 
+                  type="number"
+                  placeholder="Min"
+                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
+                  value={filters.sizeMin}
+                  onChange={(e) => handleFilterChange('sizeMin', e.target.value)}
+                />
+                <input 
+                  type="number"
+                  placeholder="Max"
+                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
+                  value={filters.sizeMax}
+                  onChange={(e) => handleFilterChange('sizeMax', e.target.value)}
+                />
+              </div>
+            </div>
+            
+            {/* Rent Min/Max */}
+            <div className="w-full sm:w-auto">
+              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
+                Rent (AED/month)
+              </label>
+              <div className="flex space-x-2">
+                <input 
+                  type="number"
+                  placeholder="Min"
+                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
+                  value={filters.rentMin}
+                  onChange={(e) => handleFilterChange('rentMin', e.target.value)}
+                />
+                <input 
+                  type="number"
+                  placeholder="Max"
+                  className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-tuscany"
+                  value={filters.rentMax}
+                  onChange={(e) => handleFilterChange('rentMax', e.target.value)}
+                />
+              </div>
+            </div>
+            
+            {/* Furnishing */}
+            <div className="w-full sm:w-auto">
+              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
+                Furnishing
+              </label>
+              <select 
+                className="bg-white border border-almond rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                value={filters.furnishing}
+                onChange={(e) => handleFilterChange('furnishing', e.target.value)}
+              >
+                <option value="">All</option>
+                {furnishingOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Area selection (Search input for area) */}
+            <div className="w-full sm:w-auto">
+              <label className="block text-dubai-blue-900 text-sm font-medium mb-1">
+                Change Area
+              </label>
+              <div className="relative flex">
+                <input
+                  type="text"
+                  className="bg-white border border-almond rounded-l-md pl-10 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-tuscany"
+                  value={searchQuery} /* This should be distinct from selectedArea for input */
+                  onChange={handleAreaChange}
+                  onKeyDown={handleSearchKeyPress}
+                  placeholder="Search new area..."
+                />
+                <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
+                <button
+                  onClick={handleManualSearch}
+                  className="bg-tuscany text-white px-3 py-2 rounded-r-md hover:bg-tuscany/80 transition-colors border border-tuscany"
+                  type="button"
+                >
+                  Go
+                </button>
+                {/* Autocomplete dropdown for area search query */}
+                {searchQuery && popularAreas.filter(area => area.toLowerCase().includes(searchQuery.toLowerCase()) && area !== selectedArea).length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-y-auto border border-almond top-full left-0">
+                    {popularAreas
+                      .filter(area => area.toLowerCase().includes(searchQuery.toLowerCase()) && area !== selectedArea)
+                      .map((area, index) => (
+                        <div
+                          key={index}
+                          className="px-3 py-2 text-sm cursor-pointer hover:bg-beige"
+                          onClick={() => handleAreaSelect(area)}
+                        >
+                          {area}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
-        {/* Active filters */}
+        {/* Active filters display (remains same) */}
         {activeFilters.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {activeFilters.map((filter, index) => (
@@ -783,15 +799,12 @@ const RentalDataTable = () => {
         )}
       </div>
       
-      {/* Action Buttons */}
+      {/* Action Buttons and main title are now separate from filter controls */}
       <div className="p-4 bg-anti-flash-white border-b border-almond flex justify-between items-center flex-wrap gap-2">
         <div>
-          <h2 className="text-dubai-blue-900 text-xl font-bold">
-            Available Rental Properties
-            <span className="ml-2 text-sm font-medium text-dubai-blue-600">
-              {totalListings} listings
-            </span>
-          </h2>
+          <span className="text-sm font-medium text-dubai-blue-600">
+             Displaying {totalListings} listings for {selectedArea}{filters.propertyType ? ` (${filters.propertyType})` : ''}
+          </span>
           {newListingsCount > 0 && (
             <button
               onClick={fetchRentalListings}
@@ -850,8 +863,14 @@ const RentalDataTable = () => {
               <th onClick={() => requestSort('propertyName' as keyof RentalListing)} className="cursor-pointer">
                 Property Name {getSortIndicator('propertyName' as keyof RentalListing)}
               </th>
+              <th onClick={() => requestSort('fullAddress' as keyof RentalListing)} className="cursor-pointer">
+                Full Address {getSortIndicator('fullAddress' as keyof RentalListing)}
+              </th>
               <th onClick={() => requestSort('bedrooms')} className="cursor-pointer">
                 Bedrooms {getSortIndicator('bedrooms')}
+              </th>
+              <th onClick={() => requestSort('floorLevel' as keyof RentalListing)} className="cursor-pointer">
+                Floor {getSortIndicator('floorLevel' as keyof RentalListing)}
               </th>
               <th onClick={() => requestSort('size')} className="cursor-pointer">
                 Size (sqft) {getSortIndicator('size')}
@@ -870,7 +889,7 @@ const RentalDataTable = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-8">
+                <td colSpan={9} className="text-center py-8">
                   <div className="inline-flex items-center">
                     <div className="animate-spin h-6 w-6 border-t-2 border-b-2 border-tuscany rounded-full mr-2"></div>
                     <span>Loading properties...</span>
@@ -891,7 +910,11 @@ const RentalDataTable = () => {
                     <td className="font-medium text-dubai-blue-900">
                       {listing.propertyName || 'Property Name Not Available'}
                     </td>
+                    <td className="text-sm text-gray-700">
+                      {listing.fullAddress || listing.location || 'Address N/A'}
+                    </td>
                     <td>{listing.bedrooms === 0 ? 'Studio' : listing.bedrooms}</td>
+                    <td>{listing.floorLevel || 'N/A'}</td>
                     <td>{listing.size}</td>
                     <td className="font-medium">{formatCurrency(listing.rent)}</td>
                     <td>
@@ -908,7 +931,7 @@ const RentalDataTable = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-dubai-blue-900/70">
+                <td colSpan={9} className="text-center py-8 text-dubai-blue-900/70">
                   <FaInfoCircle className="text-3xl mx-auto mb-2" />
                   <p>No rental listings found matching your filters.</p>
                   <button 

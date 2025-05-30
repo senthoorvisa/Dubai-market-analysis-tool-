@@ -284,32 +284,37 @@ class DubaiLandDeptService {
       const listings: RentalListing[] = [];
 
       for (const rental of sampleDLDData) {
+        const floorLevel = Math.floor(Math.random() * 30) + 1; // Keep random floor for DLD mock
+        const propertyName = rental.project || `${rental.area} Property`;
+        const constructedFullAddress = `${propertyName}, Floor ${floorLevel}, ${rental.area}, Dubai, UAE`;
+
         // Convert DLD data to our format
         const listing: RentalListing = {
           id: `dld-${rental.registrationDate}-${rental.area}-${Math.random().toString(36).substr(2, 9)}`,
           type: this.mapPropertyType(rental.propertyType, rental.propertySubType),
-          bedrooms: rental.numberOfRooms || 0,
-          bathrooms: Math.max(1, rental.numberOfRooms), // Estimate bathrooms
-          size: rental.propertySize || this.estimateSize(rental.numberOfRooms),
-          rent: rental.annualAmount || rental.contractAmount, // Monthly rent
+          bedrooms: rental.numberOfRooms ?? 0,
+          bathrooms: Math.max(1, rental.numberOfRooms ?? 0), // Estimate bathrooms
+          size: rental.propertySize ?? this.estimateSize(rental.numberOfRooms ?? 0),
+          rent: rental.annualAmount ?? rental.contractAmount ?? 0, // Monthly rent
           furnishing: 'Unfurnished', // DLD doesn't specify furnishing
           availableSince: rental.startDate,
           location: rental.area,
+          fullAddress: constructedFullAddress, // Added full address
           amenities: this.getDLDAmenities(rental.nearestMall, rental.nearestMetro),
           contactName: 'Dubai Land Department Verified',
           contactPhone: '+971-4-2222-222',
           contactEmail: 'info@dubailand.gov.ae',
           propertyAge: 'Ready',
           viewType: this.getViewTypeFromLocation(rental.area),
-          floorLevel: Math.floor(Math.random() * 30) + 1,
-          parkingSpaces: rental.parking || 1,
+          floorLevel: floorLevel, // Use generated floorLevel
+          parkingSpaces: rental.parking ?? 1,
           petFriendly: false, // Not specified in DLD
           nearbyAttractions: [rental.nearestMall, rental.nearestMetro].filter(Boolean),
           description: `Official DLD verified ${rental.propertyType.toLowerCase()} in ${rental.area}. Registration: ${rental.registrationDate}. This property is registered with Dubai Land Department and meets all regulatory requirements.`,
-          images: [],
-          link: this.generateRealPropertyLink(rental.project, rental.area, rental.propertyType, rental.numberOfRooms),
-          bhk: rental.numberOfRooms === 0 ? 'Studio' : `${rental.numberOfRooms} BHK`,
-          propertyName: rental.project // Add property name
+          images: [`/placeholder-property-${(listings.length%5)+1}.jpg`], // Cycle through placeholders
+          link: this.generateRealPropertyLink(rental.project, rental.area, rental.propertyType, rental.numberOfRooms ?? 0),
+          bhk: (rental.numberOfRooms ?? 0) === 0 ? 'Studio' : `${rental.numberOfRooms} BHK`,
+          propertyName: propertyName, // Use defined propertyName
         };
 
         listings.push(listing);

@@ -26,6 +26,11 @@ export interface EnvironmentConfig {
   enablePriceValidation: boolean;
   enableCrossVerification: boolean;
 
+  // Mock Data Control
+  useMockData: boolean;
+  fallbackToMockOnError: boolean;
+  enableRealApiCalls: boolean;
+
   // Logging & Monitoring
   logLevel: string;
   enablePerformanceMonitoring: boolean;
@@ -67,6 +72,11 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     minConfidenceThreshold: parseFloat(process.env.MIN_CONFIDENCE_THRESHOLD || '0.7'),
     enablePriceValidation: process.env.ENABLE_PRICE_VALIDATION !== 'false',
     enableCrossVerification: process.env.ENABLE_CROSS_VERIFICATION !== 'false',
+
+    // Mock Data Control
+    useMockData: process.env.USE_MOCK_DATA === 'true',
+    fallbackToMockOnError: process.env.FALLBACK_TO_MOCK_ON_ERROR !== 'false',
+    enableRealApiCalls: process.env.ENABLE_REAL_API_CALLS !== 'false',
 
     // Logging & Monitoring
     logLevel: process.env.LOG_LEVEL || 'info',

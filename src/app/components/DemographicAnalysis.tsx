@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useDemographicAnalysis } from '../hooks/useDemographicAnalysis';
 import { DemographicData, InfrastructureProject } from '../interfaces/demographics';
-import { getDemographicInfo } from '../services/openAiService';
+import { getDemographicAnalysis as getGeminiDemographicAnalysis } from '../services/geminiService';
 import ApiKeyInput from './ApiKeyInput';
 import apiKeyService from '../services/apiKeyService';
 import EnhancedDemographicDisplay from './EnhancedDemographicDisplay';
@@ -80,21 +80,32 @@ const DemographicAnalysis: React.FC = () => {
       return;
     }
     
-    if (!isApiKeyConfigured) {
-      setShowApiKeyInput(true);
-      setAiError('Please configure your OpenAI API key to use this feature');
+    // Check for NEXT_PUBLIC_GEMINI_API_KEY directly
+    const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      setAiError('Gemini API key not configured. Please set NEXT_PUBLIC_GEMINI_API_KEY in your environment.');
+      setIsApiKeyConfigured(false); // Reflect that the required key is missing
+      // setShowApiKeyInput(true); // Optionally show a generic API key input if you have one, but error is more specific
       return;
     }
+    setIsApiKeyConfigured(true); // Key is present
     
     setAiLoading(true);
     setAiError(null);
+    setAiAnalysis(null); // Clear previous analysis
     
     try {
-      const response = await getDemographicInfo(location);
+      // Call the new Gemini service function
+      const response = await getGeminiDemographicAnalysis(location);
       if (response.success && response.data) {
         setAiAnalysis(response.data);
       } else {
-        throw new Error(response.error || 'Failed to get demographic information');
+        // Gemini service already checks for API key, but if other error occurs:
+        const message = response.error || 'Failed to get demographic information from Gemini service.';
+        setAiError(message);
+        if (message.toLowerCase().includes('api key')) {
+          setIsApiKeyConfigured(false);
+        }
       }
     } catch (err) {
       let errorMessage = 'Failed to generate AI analysis. Please try again later.';
@@ -102,13 +113,9 @@ const DemographicAnalysis: React.FC = () => {
         errorMessage = err.message;
       }
       setAiError(errorMessage);
-      
-      // If error is related to API key, show API key input
-      if (errorMessage.includes('API key') || errorMessage.includes('authentication')) {
+      if (errorMessage.toLowerCase().includes('api key')) {
         setIsApiKeyConfigured(false);
-        setShowApiKeyInput(true);
       }
-      
       console.error('Error generating AI demographic analysis:', err);
     } finally {
       setAiLoading(false);
@@ -273,131 +280,69 @@ const DemographicAnalysis: React.FC = () => {
 
           {/* Infrastructure Section (if available) */}
           {infrastructureAnalysis && (
-            <div className="mb-8">
-              <h3 className="text-xl font-semibold mb-3 text-gray-800">Infrastructure Analysis</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                {/* Projects */}
-                <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                  <h4 className="font-medium mb-3 text-gray-800">Major Infrastructure Projects</h4>
-                  
-                  <div className="space-y-3">
-                    {infrastructureAnalysis.projects && infrastructureAnalysis.projects.map((project, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium text-gray-800">{project.name}</span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            project.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                            project.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {project.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-1">{project.description}</p>
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Completion: {project.estimatedCompletion}</span>
-                          <span>Impact: <span className="text-green-600">+{project.estimatedImpact}%</span></span>
-                        </div>
-                      </div>
-                    ))}
-                    {!infrastructureAnalysis.projects && (
-                      <p className="text-gray-500 text-sm">Project data not available for this location.</p>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Transportation - only show if there's transportation data */}
-                {infrastructureAnalysis.transportation && infrastructureAnalysis.transportation.length > 0 ? (
-                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                    <h4 className="font-medium mb-3 text-gray-800">Transportation & Connectivity</h4>
-                    
-                    <div className="space-y-3">
-                      {infrastructureAnalysis.transportation.map((item, index) => (
-                        <div key={index} className="flex items-start space-x-2">
-                          <div className={`p-1 rounded-full ${
-                            item.type === 'Metro' ? 'bg-red-100 text-red-800' :
-                            item.type === 'Bus' ? 'bg-blue-100 text-blue-800' :
-                            item.type === 'Road' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7l4-4m0 0l4 4m-4-4v18" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                            <p className="text-xs text-gray-600">{item.description}</p>
-                          </div>
-                        </div>
-                      ))}
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold mb-4 text-gray-800">Infrastructure Projects</h3>
+              {infrastructureAnalysis.projects && infrastructureAnalysis.projects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {infrastructureAnalysis.projects.map((project) => (
+                    <div key={project.id} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                      <h4 className="font-medium mb-2 text-gray-800">{project.name}</h4>
+                      <p className="text-sm text-gray-600 mb-1">Type: {project.type}</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        Status: 
+                        <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${project.status === 'completed' ? 'bg-green-100 text-green-800' : project.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                          {project.status.replace('_', ' ')}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-600 mb-1">Completion: {project.completionDate}</p>
+                      <p className="text-sm text-gray-600">Impact: {project.estimatedImpact}%</p>
                     </div>
-                  </div>
-                ) : null}
-              </div>
-              
-              {/* Urban Facilities */}
-              {infrastructureAnalysis.urbanFacilities && infrastructureAnalysis.urbanFacilities.length > 0 ? (
-                <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                  <h4 className="font-medium mb-3 text-gray-800">Urban Facilities</h4>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    {infrastructureAnalysis.urbanFacilities.map((facility, index) => (
-                      <div key={index} className="text-center">
-                        <div className="flex items-center justify-center bg-gray-100 rounded-full w-12 h-12 mx-auto mb-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                          </svg>
-                        </div>
-                        <p className="font-medium text-sm text-gray-800">{facility.type}</p>
-                        <p className="text-xs text-gray-600">{facility.count} within 3km</p>
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">Urban facilities data will be loaded when you search with an API key.</p>
+                <p className="text-gray-500 text-sm">No major infrastructure projects listed for this location or data not available.</p>
               )}
             </div>
           )}
 
-          {/* Market News Section */}
-          {isApiKeyConfigured && (
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xl font-semibold text-gray-800">Market News & Updates</h3>
-                <button
-                  className="text-sm text-green-600 hover:underline focus:outline-none"
-                  onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                >
-                  {showApiKeyInput ? 'Hide API Settings' : 'Configure API'}
-                </button>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                {marketNews && marketNews.length > 0 ? (
-                  <div className="space-y-3">
-                    {marketNews.map((news, index) => (
-                      <div key={index} className="border-l-4 border-green-500 pl-3 py-1">
-                        <p className="text-gray-800">{news}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <p className="text-gray-600">Click "Analyze Demographics" to fetch latest market news for this location.</p>
-                    <button
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-                      onClick={fetchMarketNews}
-                      disabled={isLoading || !location.trim() || !isApiKeyConfigured}
-                    >
-                      Fetch News
-                    </button>
-                  </div>
-                )}
+          {/* Transportation - Re-evaluate based on data structure */}
+          {infrastructureAnalysis && infrastructureAnalysis.transportation ? (
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm mb-6">
+              <h4 className="font-medium mb-3 text-gray-800">Transportation & Connectivity</h4>
+              <div className="space-y-2 text-sm text-gray-700">
+                <p>Metro Access: {infrastructureAnalysis.transportation.metro ? 'Yes' : 'No'}</p>
+                <p>Bus Network: {infrastructureAnalysis.transportation.bus ? 'Yes' : 'No'}</p>
+                <p>Tram Availability: {infrastructureAnalysis.transportation.tram ? 'Yes' : 'No'}</p>
+                <p>Water Taxi: {infrastructureAnalysis.transportation.waterTaxi ? 'Yes' : 'No'}</p>
+                <p>Walk Score: {infrastructureAnalysis.transportation.walkScore !== undefined ? `${infrastructureAnalysis.transportation.walkScore}/100` : 'N/A'}</p>
               </div>
             </div>
-          )}
+          ) : infrastructureAnalysis && !infrastructureAnalysis.transportation ? (
+             <p className="text-gray-500 text-sm mb-6">Transportation data not available for this location.</p>
+          ) : null}
+          
+          {/* Urban Facilities - Conditionally render or provide placeholder */}
+          {infrastructureAnalysis && (infrastructureAnalysis as any).urbanFacilities && (infrastructureAnalysis as any).urbanFacilities.length > 0 ? (
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <h4 className="font-medium mb-3 text-gray-800">Urban Facilities</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {(infrastructureAnalysis as any).urbanFacilities.map((facility: { type: string; count: number }, index: number) => (
+                  <div key={index} className="text-center">
+                    <div className="flex items-center justify-center bg-gray-100 rounded-full w-12 h-12 mx-auto mb-2">
+                      {/* Placeholder Icon - replace with dynamic icons if available */}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                    </div>
+                    <p className="font-medium text-sm text-gray-800">{facility.type}</p>
+                    <p className="text-xs text-gray-600">{facility.count} within 3km</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : infrastructureAnalysis && !(infrastructureAnalysis as any).urbanFacilities ? (
+            <p className="text-gray-500 text-sm">Urban facilities data not available for this location or will appear after AI analysis.</p>
+          ) : null}
         </div>
       )}
     </div>

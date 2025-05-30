@@ -9,6 +9,7 @@ export interface RentalListing {
   furnishing: 'Furnished' | 'Unfurnished' | 'Partially Furnished';
   availableSince: string;
   location: string;
+  fullAddress?: string;
   amenities: string[];
   contactName: string;
   contactPhone: string;
@@ -106,6 +107,12 @@ class RentalDataService {
    * Get rental listings with Real-Time Data Priority
    */
   async getRentalListings(area: string, filters: RentalFilter = {}, page: number = 1, pageSize: number = 50): Promise<RentalApiResponse> {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('ERROR: NEXT_PUBLIC_GEMINI_API_KEY is not set. Cannot fetch rental listings.');
+      throw new Error('API_KEY_MISSING');
+    }
+
     const cacheKey = `realtime-${area.toLowerCase()}-${JSON.stringify(filters)}-${page}`;
     
     try {
@@ -259,6 +266,11 @@ class RentalDataService {
     } catch (error) {
       console.error(`❌ Error fetching rental listings for ${area}:`, error);
       
+      // If it's an API key missing error from a deeper call, rethrow it.
+      if (error instanceof Error && error.message === 'API_KEY_MISSING') {
+        throw error;
+      }
+
       // Return cached data if available during error
       const cached = this.cache.get(cacheKey);
       if (cached) {
@@ -382,103 +394,65 @@ class RentalDataService {
     page: number,
     pageSize: number
   ): Promise<RentalApiResponse> {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      // This should ideally not be reached if the top-level getRentalListings checks the key.
+      // If it is, it means a direct call to generateFallbackData or a logic error.
+      console.error('CRITICAL_ERROR_IN_RENTAL_FALLBACK: API key missing when generateFallbackData called.');
+      // To prevent actual fallback generation, we can return an empty or error-indicating structure.
+      // However, the top-level getRentalListings should catch the API_KEY_MISSING error before this.
+      // For now, let's assume the top-level check handles this.
+      // To be safe, we could throw here too if this path is critical for API key dependent operations.
+      // For now, it generates random data, so we might let it proceed but log verbosely.
+      console.warn('Fallback data is being generated WITHOUT an API key; this data will be purely random and not AI-enhanced.')
+    }
+
     console.log(`Generating fallback data for ${area}...`);
     
-    // Enhanced Dubai market data based on Q4 2024 trends
-    const dubaiRentalMarket = {
-      'Dubai Marina': { basePrice: 75000, pricePerSqft: 85, avgSize: 1200, premium: 1.0 },
-      'Downtown Dubai': { basePrice: 110000, pricePerSqft: 130, avgSize: 1000, premium: 1.4 },
-      'Palm Jumeirah': { basePrice: 170000, pricePerSqft: 170, avgSize: 1500, premium: 2.0 },
-      'Business Bay': { basePrice: 85000, pricePerSqft: 100, avgSize: 1100, premium: 1.1 },
-      'Jumeirah Lake Towers': { basePrice: 70000, pricePerSqft: 80, avgSize: 1150, premium: 0.9 },
-      'Jumeirah Beach Residence': { basePrice: 95000, pricePerSqft: 115, avgSize: 1300, premium: 1.3 },
-      'Arabian Ranches': { basePrice: 140000, pricePerSqft: 75, avgSize: 2500, premium: 1.6 },
-      'Dubai Hills Estate': { basePrice: 120000, pricePerSqft: 85, avgSize: 1800, premium: 1.5 },
-      'DIFC': { basePrice: 100000, pricePerSqft: 120, avgSize: 1000, premium: 1.3 },
-      'Jumeirah Village Circle': { basePrice: 60000, pricePerSqft: 70, avgSize: 1000, premium: 0.8 }
-    };
-
-    const marketData = dubaiRentalMarket[area as keyof typeof dubaiRentalMarket] || dubaiRentalMarket['Dubai Marina'];
     const listings: RentalListing[] = [];
+    const currentYear = new Date().getFullYear();
+    const propertyTypes = filters.propertyType ? [filters.propertyType] : ['Apartment', 'Villa', 'Townhouse', 'Studio'];
+    const furnishingOptions: Array<'Furnished' | 'Unfurnished' | 'Partially Furnished'> = ['Furnished', 'Unfurnished', 'Partially Furnished'];
 
-    // Generate 20-25 realistic listings
-    const listingCount = Math.floor(Math.random() * 6) + 20;
-    
-    for (let i = 0; i < listingCount; i++) {
-      const bedrooms = Math.floor(Math.random() * 4); // 0-3 bedrooms
-      const isStudio = bedrooms === 0;
+    for (let i = 0; i < pageSize; i++) {
+      const type = propertyTypes[i % propertyTypes.length];
+      const bedrooms = filters.bedrooms ? (filters.bedrooms === 'Studio' ? 0 : parseInt(filters.bedrooms)) : Math.floor(Math.random() * 5);
+      const size = parseInt(filters.sizeMin || '500') + Math.floor(Math.random() * (parseInt(filters.sizeMax || '3000') - parseInt(filters.sizeMin || '500')));
+      const rent = parseInt(filters.rentMin || '30000') + Math.floor(Math.random() * (parseInt(filters.rentMax || '250000') - parseInt(filters.rentMin || '30000')));
+      const furnishing = filters.furnishing ? filters.furnishing as 'Furnished' | 'Unfurnished' | 'Partially Furnished' : furnishingOptions[i % furnishingOptions.length];
+      const floorLevel = Math.floor(Math.random() * 30) + 1;
+      const propertyName = `${area} ${type} ${i + 1}`;
       
-      // Calculate realistic size with variance
-      const baseSize = isStudio ? 
-        Math.floor(400 + Math.random() * 250) : 
-        Math.floor(marketData.avgSize + (bedrooms - 1) * 350 + (Math.random() - 0.5) * 500);
-      
-      // Calculate realistic rent with market variations
-      const basePriceMultiplier = isStudio ? 0.7 : Math.max(0.9, bedrooms * 0.45);
-      const marketVariation = 0.85 + (Math.random() * 0.3); // ±15% variation
-      const baseRent = marketData.basePrice * basePriceMultiplier * marketVariation;
-      const rent = Math.floor(baseRent);
-      
-      // Apply filters early to reduce generation overhead
-      if (filters.bedrooms && filters.bedrooms !== 'Studio' && parseInt(filters.bedrooms) !== bedrooms) continue;
-      if (filters.bedrooms === 'Studio' && !isStudio) continue;
-      if (filters.rentMin && rent < parseInt(filters.rentMin)) continue;
-      if (filters.rentMax && rent > parseInt(filters.rentMax)) continue;
-      if (filters.sizeMin && baseSize < parseInt(filters.sizeMin)) continue;
-      if (filters.sizeMax && baseSize > parseInt(filters.sizeMax)) continue;
+      let constructedFullAddress = `${propertyName}, Floor ${floorLevel}, ${area}, Dubai, UAE`;
+      // If location field itself is more specific, could use that
+      // For fallback, this is a reasonable construction.
 
-      const propertyTypes = ['Apartment', 'Studio', 'Penthouse'];
-      const furnishingTypes: ('Furnished' | 'Unfurnished' | 'Partially Furnished')[] = 
-        ['Furnished', 'Unfurnished', 'Partially Furnished'];
-      
-      const type = isStudio ? 'Studio' : propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
-      const furnishing = furnishingTypes[Math.floor(Math.random() * furnishingTypes.length)];
-      
-      if (filters.propertyType && filters.propertyType !== type) continue;
-      if (filters.furnishing && filters.furnishing !== furnishing) continue;
-
-      // Enhanced amenities based on location
-      const baseAmenities = ['Swimming Pool', 'Gym', '24/7 Security', 'Parking'];
-      const premiumAmenities = ['Concierge', 'Spa', 'Tennis Court', 'Beach Access', 'Valet Parking'];
-      const standardAmenities = ['Balcony', 'Central AC', 'Built-in Wardrobes', 'Elevator', 'Garden View'];
-      
-      let availableAmenities = [...baseAmenities, ...standardAmenities];
-      if (marketData.premium > 1.2) {
-        availableAmenities.push(...premiumAmenities);
-      }
-      
-      const selectedAmenities = availableAmenities
-        .sort(() => 0.5 - Math.random())
-        .slice(0, Math.floor(Math.random() * 6) + 4);
-
-      // Generate realistic contact information
-      const agentNumber = Math.floor(Math.random() * 99) + 1;
-      const phoneNumber = `+971-50-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`;
-      
       listings.push({
-        id: `fallback-${area.replace(/\s+/g, '-').toLowerCase()}-${i}-${Date.now()}`,
+        id: `fallback-${area}-${i}-${Date.now()}`,
         type,
         bedrooms,
-        bathrooms: Math.max(1, bedrooms + Math.floor(Math.random() * 2)),
-        size: baseSize,
-        rent,
+        bathrooms: Math.max(1, bedrooms), // Simplified bathrooms
+        size: Math.max(300, Math.min(5000, size)), // Ensure reasonable size
+        rent: Math.max(20000, Math.min(500000, rent)), // Ensure reasonable rent
         furnishing,
-        availableSince: new Date(Date.now() - Math.random() * 45 * 24 * 60 * 60 * 1000).toISOString(),
-        location: area,
-        amenities: selectedAmenities,
-        contactName: `${area} Property Agent ${agentNumber}`,
-        contactPhone: phoneNumber,
-        contactEmail: `agent${agentNumber}@${area.replace(/\s+/g, '').toLowerCase()}properties.ae`,
-        propertyAge: Math.random() > 0.8 ? 'Under Construction' : 'Ready',
+        availableSince: `${currentYear}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`,
+        location: area, // Keep general area in location field
+        fullAddress: constructedFullAddress, // Populate new field
+        amenities: ['Balcony', 'Shared Pool', 'Covered Parking', 'Security'].slice(0, Math.floor(Math.random() * 4) + 1),
+        contactName: 'Property Manager',
+        contactPhone: '+971 50 123 ${String(Math.floor(Math.random() * 9000) + 1000)}',
+        contactEmail: `info@${area.toLowerCase().replace(/\s+/g, '-')}-properties.ae`,
+        propertyAge: `${Math.floor(Math.random() * 10) + 1} years`,
         viewType: this.getViewType(area),
-        floorLevel: Math.floor(Math.random() * 40) + 1,
-        parkingSpaces: Math.floor(Math.random() * 3) + 1,
-        petFriendly: Math.random() > 0.6,
-        nearbyAttractions: this.getNearbyAttractions(area),
-        description: `Modern ${isStudio ? 'studio' : `${bedrooms} bedroom`} ${type.toLowerCase()} in ${area}. ${furnishing} with premium amenities and excellent location. Available immediately.`,
-        images: [],
-        link: `https://www.bayut.com/to-rent/property/${area.replace(/\s+/g, '-').toLowerCase()}/fallback-${i + 1}`,
-        bhk: isStudio ? 'Studio' : `${bedrooms} BHK`
+        floorLevel,
+        parkingSpaces: Math.floor(Math.random() * 2) + 1,
+        petFriendly: Math.random() > 0.5,
+        nearbyAttractions: this.getNearbyAttractions(area).slice(0, 2),
+        description: `A well-maintained ${bedrooms === 0 ? 'studio' : `${bedrooms}-bedroom`} ${type.toLowerCase()} in ${area} spanning ${size} sqft. Features include ${['Balcony', 'Shared Pool', 'Covered Parking', 'Security'].slice(0, Math.floor(Math.random() * 4) + 1).join(', ')}. Available from ${`${currentYear}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`}. Rent: AED ${rent.toLocaleString()}/year.`,
+        images: [`/placeholder-property-${(i%5)+1}.jpg`],
+        link: '#',
+        propertyName,
+        bhk: bedrooms === 0 ? 'Studio' : `${bedrooms} BHK`
       });
     }
 

@@ -9,6 +9,8 @@ export async function POST(request: Request) {
       location, 
       propertyType, 
       bedrooms, 
+      floorNumber,
+      unitNumber,
       priceRange, 
       amenities 
     } = await request.json();
@@ -23,7 +25,12 @@ export async function POST(request: Request) {
     const propertyName = searchTerm || 'Property';
     const area = location || 'Dubai Marina';
 
-    console.log(`🔍 Property lookup request: ${propertyName} in ${area}`);
+    console.log(`🔍 Property lookup request: ${propertyName} in ${area}`, { 
+      propertyType, 
+      bedrooms, 
+      floorNumber, 
+      unitNumber 
+    });
 
     try {
       // Fetch real-time data from Dubai Land Department
@@ -35,7 +42,9 @@ export async function POST(request: Request) {
         area, 
         comprehensiveData,
         propertyType,
-        bedrooms
+        bedrooms,
+        floorNumber,
+        unitNumber
       );
       
       return NextResponse.json({
@@ -56,7 +65,12 @@ export async function POST(request: Request) {
       console.warn('⚠️ Failed to fetch real-time data, using fallback:', dldError);
       
       // Use fallback data if real-time fetch fails
-      const fallbackData = generateFallbackPropertyData(propertyName, area);
+      const fallbackData = generateFallbackPropertyData(propertyName, area, {
+        propertyType,
+        bedrooms,
+        floorNumber,
+        unitNumber
+      });
       
       return NextResponse.json({
         success: true,
@@ -86,7 +100,9 @@ function transformDLDDataToPropertyData(
   area: string,
   comprehensiveData: any,
   propertyType?: string,
-  bedrooms?: string
+  bedrooms?: string,
+  floorNumber?: string,
+  unitNumber?: string
 ) {
   const { transactions, projects, developers, valuations, summary } = comprehensiveData;
   
@@ -296,7 +312,7 @@ function generateRevenueData() {
 }
 
 // Fallback data generator (updated with realistic sale prices)
-function generateFallbackPropertyData(propertyName: string, area: string) {
+function generateFallbackPropertyData(propertyName: string, area: string, additionalData: any) {
   const currentYear = new Date().getFullYear();
   
   // Generate realistic sale price history (not rental)
