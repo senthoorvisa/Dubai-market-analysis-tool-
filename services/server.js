@@ -15,6 +15,7 @@ const aiRoutes = require('./aiConnector/routes');
 const rentalScheduler = require('./rentalService/scheduler');
 const developerScheduler = require('./developerAnalysis/scheduler');
 const demandScheduler = require('./marketDemand/scheduler');
+const RealTimeDataUpdater = require('./scheduler/realTimeUpdater');
 
 const dev = process.env.NODE_ENV !== 'production';
 const nextApp = next({ dev, dir: path.join(__dirname, '..') });
@@ -22,6 +23,9 @@ const handle = nextApp.getRequestHandler();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize real-time data updater
+const realTimeUpdater = new RealTimeDataUpdater();
 
 // Prepare Next.js app
 nextApp.prepare().then(() => {
@@ -41,6 +45,16 @@ nextApp.prepare().then(() => {
   app.use('/api/developers', developerRoutes);
   app.use('/api/demand', demandRoutes);
   app.use('/api/ai', aiRoutes);
+
+  // Real-time updater status endpoint
+  app.get('/api/real-time/status', (req, res) => {
+    res.json(realTimeUpdater.getUpdateStats());
+  });
+
+  app.get('/api/real-time/health', async (req, res) => {
+    const health = await realTimeUpdater.healthCheck();
+    res.json(health);
+  });
 
   // Error handling middleware for API routes
   app.use('/api/*', (err, req, res, next) => {
@@ -73,6 +87,14 @@ nextApp.prepare().then(() => {
     rentalScheduler.start();
     developerScheduler.start();
     demandScheduler.start();
+    
+    // Start real-time data updater
+    console.log('⚡ Starting real-time data updater...');
+    realTimeUpdater.startRealTimeUpdates().then(() => {
+      console.log('✅ Real-time data updater started successfully');
+    }).catch((error) => {
+      console.error('❌ Failed to start real-time data updater:', error);
+    });
   });
 }).catch((ex) => {
   console.error('Error starting server:', ex);

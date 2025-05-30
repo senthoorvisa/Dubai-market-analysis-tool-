@@ -12,35 +12,90 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import apiKeyService from '../services/apiKeyService';
-import { developerService } from '../services/developerService';
+import backendApiService from '../services/backendApiService';
 
-// Use the developer service instead of mock data
+// TypeScript interfaces
+interface RevenueBreakdown {
+  year: number;
+  residential: number;
+  commercial: number;
+  mixedUse: number;
+  [key: string]: number; // Allow dynamic property access
+}
+
+interface Property {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  location: string;
+  units?: number;
+  completionYear?: number;
+  value?: number;
+}
+
+interface Client {
+  name: string;
+  occupation: string;
+  revenue: number;
+}
+
+interface DeveloperData {
+  name: string;
+  headquarters: string;
+  founded: number;
+  foundedYear?: number; // Alternative property name
+  totalProjects: number;
+  activeProjects: number;
+  completedProjects: number;
+  totalUnits: number;
+  totalValue?: number;
+  marketShare: number;
+  averageRating: number;
+  avgROI?: number;
+  clientSatisfaction?: number;
+  revenueBreakdown: RevenueBreakdown[];
+  properties: Property[];
+  topProperties?: Property[];
+  description?: string;
+  website?: string;
+  contact?: {
+    phone?: string;
+    email?: string;
+  };
+  topClients?: Client[];
+}
+
+interface Developer {
+  name: string;
+  id?: string;
+}
+
+// Use the unified backend API service instead of deleted developerService
 export default function DeveloperAnalysis() {
   // Get URL query parameters
   const searchParams = useSearchParams();
   const developerFromUrl = searchParams.get('name');
   
-  // State for API key configuration
-  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  // State for loading and errors
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
   
   // Selected developer
-  const [selectedDeveloper, setSelectedDeveloper] = useState(developerFromUrl || '');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [activeChartFilter, setActiveChartFilter] = useState('all');
-  const [showAllProperties, setShowAllProperties] = useState(false);
+  const [selectedDeveloper, setSelectedDeveloper] = useState<string>(developerFromUrl || '');
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+  const [activeChartFilter, setActiveChartFilter] = useState<string>('all');
+  const [showAllProperties, setShowAllProperties] = useState<boolean>(false);
   
   // Add state for the property detail modal
-  const [selectedProperty, setSelectedProperty] = useState(null);
-  const [showPropertyDetail, setShowPropertyDetail] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [showPropertyDetail, setShowPropertyDetail] = useState<boolean>(false);
   
   // State for developer data
-  const [developerData, setDeveloperData] = useState(null);
+  const [developerData, setDeveloperData] = useState<DeveloperData | null>(null);
 
   // Popular developers list
-  const [popularDevelopers, setPopularDevelopers] = useState([
+  const [popularDevelopers, setPopularDevelopers] = useState<string[]>([
     'Emaar Properties',
     'Damac Properties',
     'Nakheel',
@@ -54,23 +109,28 @@ export default function DeveloperAnalysis() {
   ]);
 
   // Filter chart data based on selection
-  const filteredChartData = developerData?.revenueBreakdown?.map(item => {
+  const filteredChartData = developerData?.revenueBreakdown?.map((item: RevenueBreakdown) => {
     if (activeChartFilter === 'all') return item;
     
-    const filteredItem = { year: item.year };
+    const filteredItem: any = { year: item.year };
     filteredItem[activeChartFilter] = item[activeChartFilter];
     return filteredItem;
   }) || [];
 
-  // Function to fetch developer data
-  const fetchDeveloperData = async (name) => {
+  // Function to fetch developer data using unified backend API
+  const fetchDeveloperData = async (name: string) => {
     setLoading(true);
     setError('');
     
     try {
-      // Fetch real-time developer data
-      const data = await developerService.getRealTimeDeveloperData(name);
-      setDeveloperData(data);
+      // Use unified backend API service for developer analysis
+      const response = await backendApiService.getDeveloperAnalysis(name);
+      
+      if (response.success && response.data) {
+        setDeveloperData(response.data as DeveloperData);
+      } else {
+        setError(response.error || 'Failed to load developer data');
+      }
     } catch (err) {
       console.error('Error fetching developer data:', err);
       setError('Failed to load developer data. Please try again.');
@@ -79,21 +139,19 @@ export default function DeveloperAnalysis() {
     }
   };
 
-  // Fetch popular developers
+  // Fetch popular developers using unified backend API
   const fetchPopularDevelopers = async () => {
     try {
-      const developers = await developerService.getAllDevelopers();
-      setPopularDevelopers(developers.map(dev => dev.name));
+      const response = await backendApiService.getAllDevelopers();
+      if (response.success && response.data) {
+        setPopularDevelopers((response.data as Developer[]).map((dev: Developer) => dev.name));
+      }
     } catch (err) {
       console.error('Error fetching popular developers:', err);
     }
   };
 
   useEffect(() => {
-    // Check if API key exists and load developer data
-    const hasApiKey = apiKeyService.isApiKeyConfigured();
-    setIsApiKeyConfigured(hasApiKey);
-    
     // Set developer from URL if provided
     if (developerFromUrl) {
       setSelectedDeveloper(developerFromUrl);
@@ -114,7 +172,7 @@ export default function DeveloperAnalysis() {
   }, [selectedDeveloper, developerFromUrl]);
 
   // Format currency
-  const formatCurrency = (value) => {
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-AE', {
       style: 'currency',
       currency: 'AED',
@@ -124,7 +182,7 @@ export default function DeveloperAnalysis() {
   };
 
   // Add a function to handle property click
-  const handlePropertyClick = (property) => {
+  const handlePropertyClick = (property: Property) => {
     setSelectedProperty(property);
     setShowPropertyDetail(true);
   };
@@ -244,19 +302,6 @@ export default function DeveloperAnalysis() {
             </div>
           </div>
         </header>
-        
-        {!isApiKeyConfigured && (
-          <div className="bg-beige border border-almond rounded-lg p-4 flex items-start mb-6">
-            <FaExclamationTriangle className="text-tuscany mt-1 mr-3 flex-shrink-0" />
-            <div>
-              <h3 className="font-medium text-dubai-blue-900">API Key Not Configured</h3>
-              <p className="text-sm text-dubai-blue-700">You need to set up your OpenAI API key to use all features of this tool.</p>
-              <Link href="/settings" className="text-sm text-tuscany underline mt-1 inline-block">
-                Go to Settings to Configure API Key
-              </Link>
-            </div>
-          </div>
-        )}
         
         {/* Welcome message when no developer is selected */}
         {!developerData && !loading && (
@@ -391,7 +436,7 @@ export default function DeveloperAnalysis() {
                         <span className="text-dubai-blue-700 w-32">Founded:</span>
                         <span className="font-medium">{developerData?.foundedYear || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center">
+                      <div className="flex">
                         <span className="text-dubai-blue-700 w-32">Website:</span>
                         {developerData?.website ? (
                           <a 
@@ -411,7 +456,7 @@ export default function DeveloperAnalysis() {
                   <div>
                     <h3 className="text-lg font-semibold text-dubai-blue-900 mb-2">Contact Information</h3>
                     <div className="space-y-2">
-                      <div className="flex items-center">
+                      <div className="flex">
                         <span className="text-dubai-blue-700 w-32">Phone:</span>
                         {developerData?.contact?.phone ? (
                           <a 
@@ -424,7 +469,7 @@ export default function DeveloperAnalysis() {
                           <span className="font-medium">N/A</span>
                         )}
                       </div>
-                      <div className="flex items-center">
+                      <div className="flex">
                         <span className="text-dubai-blue-700 w-32">Email:</span>
                         {developerData?.contact?.email ? (
                           <a 
@@ -619,8 +664,8 @@ export default function DeveloperAnalysis() {
                           <td>{property.type}</td>
                           <td>{property.location}</td>
                           <td>{property.completionYear}</td>
-                          <td>{property.units.toLocaleString()}</td>
-                          <td className="text-right font-medium">{formatCurrency(property.value)}</td>
+                          <td>{property.units?.toLocaleString() || 'N/A'}</td>
+                          <td className="text-right font-medium">{property.value ? formatCurrency(property.value) : 'N/A'}</td>
                         </tr>
                       ))}
                       {(!developerData.topProperties || developerData.topProperties.length === 0) && (
@@ -681,11 +726,11 @@ export default function DeveloperAnalysis() {
                     </div>
                     <div className="flex">
                       <span className="text-dubai-blue-700 w-32">Units:</span>
-                      <span className="font-medium">{selectedProperty.units.toLocaleString()}</span>
+                      <span className="font-medium">{selectedProperty.units?.toLocaleString() || 'N/A'}</span>
                     </div>
                     <div className="flex">
                       <span className="text-dubai-blue-700 w-32">Value:</span>
-                      <span className="font-medium">{formatCurrency(selectedProperty.value)}</span>
+                      <span className="font-medium">{selectedProperty.value ? formatCurrency(selectedProperty.value) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -698,23 +743,31 @@ export default function DeveloperAnalysis() {
                     </div>
                     <div className="flex">
                       <span className="text-dubai-blue-700 w-32">Website:</span>
-                      <a 
-                        href={developerData.website} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-tuscany hover:underline font-medium"
-                      >
-                        {developerData.website.replace('https://', '')}
-                      </a>
+                      {developerData?.website ? (
+                        <a 
+                          href={developerData.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-tuscany hover:underline font-medium"
+                        >
+                          {developerData.website.replace('https://', '')}
+                        </a>
+                      ) : (
+                        <span className="font-medium">N/A</span>
+                      )}
                     </div>
                     <div className="flex">
                       <span className="text-dubai-blue-700 w-32">Contact:</span>
-                      <a 
-                        href={`tel:${developerData.contact.phone}`} 
-                        className="text-tuscany hover:underline font-medium"
-                      >
-                        {developerData.contact.phone}
-                      </a>
+                      {developerData?.contact?.phone ? (
+                        <a 
+                          href={`tel:${developerData.contact.phone}`} 
+                          className="text-tuscany hover:underline font-medium"
+                        >
+                          {developerData.contact.phone}
+                        </a>
+                      ) : (
+                        <span className="font-medium">N/A</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -725,7 +778,7 @@ export default function DeveloperAnalysis() {
                 <div className="luxury-card-modern p-6 mb-4">
                   <p className="text-dubai-blue-700">
                     {selectedProperty.name} is a prestigious {selectedProperty.type.toLowerCase()} development located in {selectedProperty.location}. 
-                    Completed in {selectedProperty.completionYear}, it features {selectedProperty.units.toLocaleString()} units and is valued at {formatCurrency(selectedProperty.value)}.
+                    Completed in {selectedProperty.completionYear}, it features {selectedProperty.units?.toLocaleString() || 'N/A'} units and is valued at {selectedProperty.value ? formatCurrency(selectedProperty.value) : 'N/A'}.
                   </p>
                   <p className="text-dubai-blue-700 mt-2">
                     This development showcases {selectedDeveloper}'s commitment to excellence in the Dubai real estate market.
@@ -742,14 +795,16 @@ export default function DeveloperAnalysis() {
                   >
                     View in Property Lookup
                   </a>
-                  <a
-                    href={developerData.website}
-                    target="_blank"
-                    rel="noopener noreferrer" 
-                    className="bg-white border border-almond text-dubai-blue-900 px-4 py-2 rounded hover:bg-beige transition-colors inline-block"
-                  >
-                    Visit Developer Website
-                  </a>
+                  {developerData?.website && (
+                    <a
+                      href={developerData.website}
+                      target="_blank"
+                      rel="noopener noreferrer" 
+                      className="bg-white border border-almond text-dubai-blue-900 px-4 py-2 rounded hover:bg-beige transition-colors inline-block"
+                    >
+                      Visit Developer Website
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

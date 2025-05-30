@@ -58,7 +58,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('api-keys');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiCallCount, setGeminiCallCount] = useState(0);
-  const currentGeminiModel = 'gemini-2.5-pro-latest';
+  const currentGeminiModel = 'gemini-1.5-pro';
   const [isGeminiKeyConfigured, setIsGeminiKeyConfigured] = useState(false);
   const [testingGeminiKey, setTestingGeminiKey] = useState(false);
   const [geminiTestResult, setGeminiTestResult] = useState({ success: false, message: '' });
@@ -345,14 +345,14 @@ export default function SettingsPage() {
                 <div className="border border-gray-200 rounded-lg p-4">
                   <h3 className="text-lg font-medium mb-3">Active Gemini Model</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Your application is configured to exclusively use the Gemini 2.5 Pro model for optimal property analysis and web scraping.
+                    Your application is configured to exclusively use the Gemini 1.5 Pro model for optimal property analysis and web scraping.
                   </p>
                   
                   <div className="space-y-3">
                     <div className="flex items-center p-3 rounded-md bg-purple-50 border border-purple-200">
                       <FaBrain className="mr-3 h-5 w-5 text-purple-600" />
                       <div>
-                        <span className="font-medium text-gray-800">Gemini 2.5 Pro (Latest & Recommended)</span>
+                        <span className="font-medium text-gray-800">Gemini 1.5 Pro (Latest & Recommended)</span>
                         <p className="text-sm text-gray-600">Most capable model for complex analysis, advanced web scraping, and highest accuracy.</p>
                       </div>
                     </div>
@@ -365,14 +365,12 @@ export default function SettingsPage() {
                   <div className="text-sm text-blue-800 space-y-1">
                     <p>• Model: {currentGeminiModel}</p>
                     <p>• Context Window: {
-                      currentGeminiModel === 'gemini-2.5-pro-latest' ? 'Up to 8 million tokens (Extended)' :
-                      currentGeminiModel === 'gemini-1.5-pro' ? '1 million tokens (Standard)' :
+                      currentGeminiModel === 'gemini-1.5-pro' ? '2 million tokens (Extended)' :
                       '1 million tokens (Standard)'
                     }</p>
                     <p>• Optimized for: Dubai real estate data scraping and analysis</p>
                     <p>• Features: Real-time web access, {
-                      currentGeminiModel === 'gemini-2.5-pro-latest' ? 'highest accuracy, advanced reasoning.' :
-                      currentGeminiModel === 'gemini-1.5-pro' ? 'accurate property specifications.' :
+                      currentGeminiModel === 'gemini-1.5-pro' ? 'highest accuracy, advanced reasoning.' :
                       'fast property queries.'
                     }</p>
                   </div>

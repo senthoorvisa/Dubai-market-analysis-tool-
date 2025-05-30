@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getRentalMarketInfo } from '../services/openAiService';
+import { getPropertyInfoWithScraping } from '../services/geminiService';
 import ApiKeyInput from './ApiKeyInput';
 import apiKeyService from '../services/apiKeyService';
 import { FaBuilding, FaMapMarkerAlt, FaBed, FaSearch, FaChartLine, FaMoneyBillWave, FaPercentage, FaSpinner, FaInfoCircle, FaClock } from 'react-icons/fa';
@@ -219,10 +219,10 @@ export default function RentalAnalysis() {
       };
       
       // Call the OpenAI API with instructions to search for real market data
-      const response = await getRentalMarketInfo(searchCriteria);
+      const response = await getPropertyInfoWithScraping(searchCriteria);
       
       if (response.success && response.data) {
-        setRentalAnalysis(response.data);
+        setRentalAnalysis(typeof response.data === 'string' ? response.data : JSON.stringify(response.data));
       } else {
         throw new Error(response.error || 'Failed to get rental market information');
       }

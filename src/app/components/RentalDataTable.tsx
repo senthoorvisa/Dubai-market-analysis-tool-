@@ -3,15 +3,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   FaSort, FaSortUp, FaSortDown, FaFilter, FaDownload, FaCopy, FaSpinner, 
-  FaRobot, FaChartLine, FaInfoCircle, FaSearch, FaMapMarkerAlt, 
+  FaChartLine, FaInfoCircle, FaSearch, FaMapMarkerAlt, 
   FaExclamationTriangle, FaHome, FaBuilding, FaEye, FaLayerGroup, 
   FaCar, FaPhone, FaEnvelope, FaPaw, FaLocationArrow,
-  FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser, FaExternalLinkAlt, FaBrain
+  FaCalendarAlt, FaChair, FaRuler, FaGlobe, FaUser, FaExternalLinkAlt
 } from 'react-icons/fa';
 import Link from 'next/link';
 import backendApiService from '../services/backendApiService';
-import apiKeyService from '../services/apiKeyService';
-import ApiKeyInput from './ApiKeyInput';
 
 // Types for rental data
 interface RentalListing {
@@ -121,14 +119,6 @@ const DEVELOPERS: Record<string, DeveloperInfo> = {
   }
 };
 
-// Add the formatAnalysis function at the top of the file
-const formatAnalysis = (analysisText: string): React.ReactNode => {
-  // Simple implementation to break text into paragraphs
-  return analysisText.split('\n\n').map((paragraph, idx) => (
-    <p key={idx} className="mb-4">{paragraph}</p>
-  ));
-};
-
 const RentalDataTable = () => {
   // State for table data and loading
   const [listings, setListings] = useState<RentalListing[]>([]);
@@ -155,7 +145,6 @@ const RentalDataTable = () => {
   const [selectedArea, setSelectedArea] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showFilterInputs, setShowFilterInputs] = useState(false);
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
   // State for filters
   const [filters, setFilters] = useState<FilterState>({
@@ -225,16 +214,6 @@ const RentalDataTable = () => {
   
   // Furnishing options
   const furnishingOptions = ['Furnished', 'Unfurnished', 'Partially Furnished'];
-  
-  // State for AI analysis
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(false);
-  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  
-  
   
   // Convert filters to API-compatible format
   const getApiFilters = useCallback((): RentalFilter => {
@@ -338,50 +317,6 @@ const RentalDataTable = () => {
     
     return () => clearInterval(intervalId);
   }, [selectedArea, lastFetchTime]);
-  
-  // Initial fetch and API key check
-  useEffect(() => {
-    const key = apiKeyService.getGeminiApiKey();
-    if (key) {
-      setIsApiKeyConfigured(true);
-      // setLoading(false); // Data will be loaded based on search/filter
-    } else {
-      setIsApiKeyConfigured(false);
-      setError('Gemini API key is not configured. Please set it in Settings to fetch rental data.');
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch when selectedArea or filters change (and API key is present)
-   useEffect(() => {
-    if (isApiKeyConfigured && (selectedArea || Object.values(filters).some(f => f !== ''))) {
-        fetchRentalListings(selectedArea);
-    } else if (!isApiKeyConfigured) {
-        setListings([]);
-        setTotalListings(0);
-        setError('Gemini API key is not configured. Please set it in Settings.');
-        setLoading(false);
-    } else if (!selectedArea && Object.values(filters).every(f => f === '')) {
-        // No area selected and no filters applied
-        setListings([]);
-        setTotalListings(0);
-        setError("Please enter a location or apply filters to see results.");
-        setLoading(false);
-    }
-   }, [selectedArea, filters, isApiKeyConfigured, fetchRentalListings]);
-
-  const handleApiKeySet = (success: boolean) => {
-    setIsApiKeyConfigured(success);
-    if (success) {
-      setShowApiKeyInput(false); // Hide input after successful setup
-      // Optionally trigger a fetch if an area was already selected/searched
-      if (selectedArea || searchQuery) {
-        fetchRentalListings(selectedArea || searchQuery);
-      }
-    } else {
-        setError('Failed to configure API key. Please try again in Settings.');
-    }
-  };
   
   // Handle area search/select
   const handleAreaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -609,99 +544,21 @@ const RentalDataTable = () => {
     }
     return value;
   };
-  
-  // Fetch AI-powered rental market analysis
-  const fetchAiAnalysis = async () => {
-    if (!isApiKeyConfigured) {
-      setShowApiKeyInput(true);
-      return;
-    }
-    
-    setIsAnalysisLoading(true);
-    setAnalysisError(null);
-    
-    try {
-      const apiKey = apiKeyService.getStoredApiKey();
-      if (!apiKey) {
-        throw new Error('API key is not configured');
-      }
-      
-      // Use the new analyzeRentalData function for better HTML formatting
-      const htmlAnalysis = await backendApiService.analyzeRentalData(
-        selectedArea,
-        listings,
-        apiKey
-      );
-      
-      setAiAnalysis(htmlAnalysis);
-      setShowAnalysis(true);
-    } catch (err) {
-      console.error('Error fetching AI rental analysis:', err);
-      setAnalysisError('Failed to get AI-powered market analysis. Please try again.');
-      
-      // If error is related to API key, show API key input
-      if (err instanceof Error && 
-          (err.message.includes('API key') || err.message.includes('authentication'))) {
-        setIsApiKeyConfigured(false);
-        setShowApiKeyInput(true);
-      }
-    } finally {
-      setIsAnalysisLoading(false);
-    }
-  };
-
-  
-
-  
 
   return (
     <div className="bg-anti-flash-white p-1 md:p-2 rounded-lg shadow-lg">
-      {/* Show ApiKeyInput if not configured and user hasn't explicitly hidden it (e.g. via a settings page link) */}
-      {!isApiKeyConfigured && showApiKeyInput && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-          <h3 className="text-lg font-semibold text-yellow-800 mb-2">API Key Required</h3>
-          <p className="text-sm text-yellow-700 mb-3">
-            A Gemini API key is required to fetch and analyze rental data. Please enter your key below or configure it in the main settings.
-          </p>
-          <ApiKeyInput onApiKeySet={handleApiKeySet} />
-          <button onClick={() => setShowApiKeyInput(false)} className="text-xs text-gray-500 mt-2 hover:underline">
-            Dismiss (configure in settings later)
-          </button>
-        </div>
-      )}
-       {!isApiKeyConfigured && !showApiKeyInput && (
-        <div className="p-4 mb-4 text-sm text-orange-700 bg-orange-100 rounded-lg border border-orange-300 flex items-center justify-between">
-          <div className="flex items-center">
-            <FaExclamationTriangle className="mr-2" /> 
-            <span>Gemini API key is not configured. AI features are disabled.</span>
-          </div>
-          <button 
-            onClick={() => setShowApiKeyInput(true)} 
-            className="ml-4 px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded hover:bg-orange-600 transition-colors"
-          >
-            Configure Key
-          </button>
-        </div>
-      )}
-
       {/* Header and Search Section */}
       <div className="mb-4 p-4 bg-white rounded-t-lg shadow">
         <div className="flex flex-col md:flex-row justify-between items-center mb-4">
           <div>
             <h2 className="text-2xl font-bold text-dubai-blue-900">
-              Rental Listings: <span className="text-tuscany">{selectedArea || 'All Areas'}</span>
+              Dubai Rental Analysis | <span className="text-tuscany">Real-time Rental Data</span>
             </h2>
             <p className="text-sm text-gray-500">
               Displaying {listings.length} of {totalListings} listings for {selectedArea || 'your search'}
             </p>
           </div>
           <div className="flex items-center space-x-2 mt-3 md:mt-0">
-            <button 
-              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors flex items-center"
-            >
-              <FaSearch className="mr-2" /> {showAdvancedSearch ? 'Hide Search' : 'Show Search'}
-            </button>
             <button 
               onClick={() => setShowFilterInputs(!showFilterInputs)}
               className="p-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors flex items-center"
@@ -711,30 +568,48 @@ const RentalDataTable = () => {
           </div>
         </div>
 
-        {/* Search Bar - Appears when showAdvancedSearch is true */}
-        {showAdvancedSearch && (
-          <div className="mt-4 mb-4">
-            <div className="flex flex-col sm:flex-row items-center gap-2 p-3 bg-sky-50 rounded-lg border border-sky-200">
-              <FaMapMarkerAlt className="text-sky-600 text-xl mb-2 sm:mb-0" />
+        {/* Enhanced Search Bar - Always Visible */}
+        <div className="mt-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 p-4 bg-gradient-to-r from-sky-50 to-blue-50 rounded-lg border border-sky-200 shadow-sm">
+            <FaMapMarkerAlt className="text-sky-600 text-xl mb-2 sm:mb-0" />
+            <div className="flex-grow w-full">
               <input 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleSearchKeyPress}
                 placeholder="E.g., Dubai Marina, JLT, Downtown..."
-                className="flex-grow p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 shadow-sm"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 shadow-sm text-lg"
               />
-              <button 
-                onClick={handleManualSearch}
-                className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center shadow hover:shadow-md"
-                disabled={loading || !searchQuery.trim()}
-              >
-                {loading && (selectedArea === searchQuery.trim() || !selectedArea && listings.length === 0) ? <FaSpinner className="animate-spin mr-2" /> : <FaSearch className="mr-2" />} 
-                Search
-              </button>
+              {/* Autocomplete suggestions */}
+              {searchQuery && filteredAreas.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredAreas.slice(0, 8).map((area) => (
+                    <button
+                      key={area}
+                      onClick={() => handleAreaSelect(area)}
+                      className="w-full text-left px-4 py-2 hover:bg-sky-50 border-b border-gray-100 last:border-b-0"
+                    >
+                      <FaMapMarkerAlt className="inline mr-2 text-sky-500" />
+                      {area}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+            <button 
+              onClick={handleManualSearch}
+              className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center shadow hover:shadow-md"
+              disabled={loading || !searchQuery.trim()}
+            >
+              {loading && (selectedArea === searchQuery.trim() || !selectedArea && listings.length === 0) ? 
+                <FaSpinner className="animate-spin mr-2" /> : 
+                <FaSearch className="mr-2" />
+              } 
+              Search
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Filters Section - Collapsible */}
@@ -829,15 +704,15 @@ const RentalDataTable = () => {
                 {furnishingOptions.map(option => <option key={option} value={option}>{option}</option>)}
               </select>
             </div>
-          </div>
-          <div className="mt-6 flex justify-end space-x-3">
-            <button 
-              onClick={clearAllFilters} 
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-            >
-              Clear All Filters
-            </button>
-            {/* Apply Filters button can be added if needed, or filters can apply on change */}
+            {/* Clear Filters Button */}
+            <div className="flex items-end">
+              <button 
+                onClick={clearAllFilters}
+                className="w-full p-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Clear All Filters
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -857,7 +732,7 @@ const RentalDataTable = () => {
         </div>
       )}
 
-      {/* Action Buttons: AI Analysis, Export, Copy - More minimal look */}
+      {/* Action Buttons: Export, Copy - More minimal look */}
       <div className="mb-4 p-3 bg-white rounded-lg shadow flex flex-col sm:flex-row justify-between items-center">
         <div className="flex items-center space-x-2 mb-2 sm:mb-0">
           <p className="text-sm text-gray-600">
@@ -866,13 +741,6 @@ const RentalDataTable = () => {
           {loading && <FaSpinner className="animate-spin text-tuscany" />}
         </div>
         <div className="flex items-center space-x-2">
-          <button 
-            onClick={fetchAiAnalysis}
-            disabled={isAnalysisLoading || listings.length === 0 || !isApiKeyConfigured}
-            className="px-3 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isAnalysisLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaRobot className="mr-2" />}AI Market Analysis
-          </button>
           <button 
             onClick={exportCSV} 
             disabled={listings.length === 0}
@@ -903,32 +771,6 @@ const RentalDataTable = () => {
         </div>
       )}
       
-      {/* AI Analysis Section */}
-      {showAnalysis && (
-        <div className="my-6 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl shadow-xl border border-purple-200">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-purple-700 flex items-center">
-              <FaBrain className="mr-2" /> AI Market Analysis for {selectedArea || 'Selected Area'}
-            </h3>
-            <button onClick={() => setShowAnalysis(false)} className="text-gray-500 hover:text-gray-700">
-              &times;
-            </button>
-          </div>
-          {isAnalysisLoading && (
-            <div className="flex flex-col items-center justify-center h-40">
-              <FaSpinner className="animate-spin text-purple-600 text-3xl mb-3" />
-              <p className="text-purple-600">Generating insights, please wait...</p>
-            </div>
-          )}
-          {analysisError && <p className="text-red-500">Error: {analysisError}</p>}
-          {aiAnalysis && !isAnalysisLoading && (
-            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed">
-              {formatAnalysis(aiAnalysis)}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Table Data */}
       {!loading && listings.length === 0 && !error && (
         <div className="text-center py-10 bg-white rounded-lg shadow">

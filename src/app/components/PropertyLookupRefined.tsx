@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   FaArrowLeft, FaSearch, FaSpinner, FaHome, FaBed, FaBath, 
   FaBuilding, FaMapMarkerAlt, FaTag, FaExternalLinkAlt, FaChevronRight, FaChevronLeft,
-  FaFilter, FaBrain
+  FaFilter, FaBrain, FaRuler, FaCalendar, FaChartLine, FaInfoCircle, FaExclamationTriangle, FaChevronDown, FaChevronUp, FaTimes
 } from 'react-icons/fa';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import { getPropertyInfoWithScraping } from '../services/geminiService';
-import { fetchLivePropertyData } from './fetchLivePropertyData';
+import backendApiService from '../services/backendApiService';
 
 // API response structure
 interface PricePoint {
@@ -131,6 +131,29 @@ const propertyTypes = [
 // Bedroom options
 const bedroomOptions = ['Studio', '1', '2', '3', '4', '5+'];
 
+// Add new interfaces for enhanced data accuracy
+interface AccuracyMetrics {
+  overallScore: number;
+  sourcesCount: number;
+  lastUpdated: string;
+  dataVerification: {
+    priceAccuracy: number;
+    developerVerification: number;
+    locationAccuracy: number;
+    dateAccuracy: number;
+  };
+  sourcesUsed: string[];
+}
+
+interface VerifiedPropertyData extends PropertyData {
+  accuracyMetrics?: AccuracyMetrics;
+  verification?: {
+    isVerified: boolean;
+    conflictingData: string[];
+    lastVerified: string;
+  };
+}
+
 export default function PropertyLookupRefined() {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
@@ -141,13 +164,16 @@ export default function PropertyLookupRefined() {
   const [priceEstimate, setPriceEstimate] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
+  const [propertyData, setPropertyData] = useState<VerifiedPropertyData | null>(null);
   const [selectedTab, setSelectedTab] = useState<'properties' | 'ongoing' | 'developer'>('properties');
   const [chartZoom, setChartZoom] = useState<{startIndex: number, endIndex: number} | null>(null);
   const [developerDetailsExpanded, setDeveloperDetailsExpanded] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [geminiAnalysis, setGeminiAnalysis] = useState<string>('');
+  const [accuracyMetrics, setAccuracyMetrics] = useState<AccuracyMetrics | null>(null);
+  const [dataVerification, setDataVerification] = useState<any>(null);
+  const [realTimeStatus, setRealTimeStatus] = useState<'idle' | 'fetching' | 'verified' | 'error'>('idle');
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -163,7 +189,7 @@ export default function PropertyLookupRefined() {
     return ((current - original) / original * 100).toFixed(2);
   };
   
-  // Handle search submission with Gemini AI
+  // Enhanced search handling with accuracy validation
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -173,12 +199,15 @@ export default function PropertyLookupRefined() {
     }
     
     setLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
     setPropertyData(null);
     setGeminiAnalysis('');
+    setAccuracyMetrics(null);
+    setDataVerification(null);
+    setRealTimeStatus('fetching');
     
     try {
-      console.log('🔮 Starting AI property search with main search term:', { 
+      console.log('🔮 Starting enhanced property search with multi-source verification:', { 
         searchTerm, 
         propertyType, 
         bedrooms, 
@@ -186,53 +215,67 @@ export default function PropertyLookupRefined() {
         unitNumber 
       });
       
-      // Get AI-powered information using Gemini
-      if (searchTerm.trim() && propertyType && bedrooms) {
-        const criteria: PropertySearchCriteria = {
-          location: searchTerm,
-          propertyType, 
-          bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10),
-          floorNumber,
-          unitNumber
-        };
-        
-        try {
-          console.log('🔮 Using Gemini AI for enhanced web scraping with criteria:', criteria);
-          const aiResponse = await getPropertyInfoWithScraping(criteria);
-          
-          if (aiResponse && aiResponse.success) {
-            console.log('✅ Gemini analysis completed successfully');
-            setGeminiAnalysis(aiResponse.data || '');
-          } else {
-            console.warn('Gemini AI warning:', aiResponse?.error);
-            setGeminiAnalysis('Unable to fetch real-time property data at this moment. Please try again.');
-          }
-        } catch (err) {
-          console.warn('Gemini AI call failed:', err);
-          setGeminiAnalysis('Unable to fetch real-time property data at this moment. Please try again.');
-        }
-      }
-      
-      // Use the fetchLivePropertyData function to get structured data
-      console.log('Fetching live property data with (searchTerm for location query):', { searchTerm, propertyType, bedrooms, floorNumber, unitNumber });
-      
-      const data = await fetchLivePropertyData(searchTerm, {
+      // Use enhanced backend API service with verification
+      const response = await backendApiService.getVerifiedPropertyData({
+        searchTerm,
+        location: searchTerm,
         propertyType,
-        bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10),
+        bedrooms,
         floorNumber,
         unitNumber
       });
       
-      console.log('Successfully received property data:', data ? 'Yes' : 'No');
-      setPropertyData(data);
-    } catch (err) {
-      if (err instanceof Error && (err.message === 'API_KEY_MISSING' || err.message === 'API_KEY_MISSING_FOR_FALLBACK')) {
-        setError('Gemini API key is not configured. Please set it up in Settings to fetch live property data.');
-        setPropertyData(null); // Ensure no stale data is shown
+      if (response.success && response.data) {
+        console.log('✅ Enhanced property lookup completed successfully');
+        const verifiedData = response.data as VerifiedPropertyData;
+        setPropertyData(verifiedData);
+        
+        // Set accuracy metrics if available
+        if (verifiedData.accuracyMetrics) {
+          setAccuracyMetrics(verifiedData.accuracyMetrics);
+        }
+        
+        // Set verification data
+        if (verifiedData.verification) {
+          setDataVerification(verifiedData.verification);
+        }
+        
+        setRealTimeStatus('verified');
+        
+        // Get enhanced AI analysis with verification
+        if (searchTerm.trim() && propertyType && bedrooms) {
+          const criteria: PropertySearchCriteria = {
+            location: searchTerm,
+            propertyType, 
+            bedrooms: bedrooms === 'Studio' ? 0 : parseInt(bedrooms, 10),
+            floorNumber,
+            unitNumber
+          };
+          
+          try {
+            console.log('🔮 Using enhanced Gemini AI for verified analysis:', criteria);
+            const aiResponse = await getPropertyInfoWithScraping(criteria);
+            
+            if (aiResponse && aiResponse.success) {
+              console.log('✅ Enhanced Gemini analysis completed successfully');
+              setGeminiAnalysis(typeof aiResponse.data === 'string' ? aiResponse.data : JSON.stringify(aiResponse.data) || '');
+            } else {
+              console.warn('Enhanced Gemini AI warning:', aiResponse?.error);
+              setGeminiAnalysis('Unable to fetch verified real-time property data at this moment. Please try again.');
+            }
+          } catch (aiError) {
+            console.warn('Enhanced Gemini AI error:', aiError);
+            setGeminiAnalysis('AI analysis temporarily unavailable.');
+          }
+        }
       } else {
-        setError('Failed to fetch property data. Please try again.');
+        setError(response.error || 'Failed to fetch verified property data');
+        setRealTimeStatus('error');
       }
-      console.error('Error fetching property data:', err);
+    } catch (error) {
+      console.error('❌ Enhanced property search error:', error);
+      setError('Failed to search for property with verification. Please try again.');
+      setRealTimeStatus('error');
     } finally {
       setLoading(false);
     }
@@ -261,15 +304,19 @@ export default function PropertyLookupRefined() {
 
     try {
       console.log('Fetching details for selected nearby property using its name as search term:', selectedProperty.name);
-      const data = await fetchLivePropertyData(selectedProperty.name, {
+      const response = await backendApiService.getPropertyLookup({
+        searchTerm: selectedProperty.name,
+        location: selectedProperty.name,
         propertyType: selectedProperty.name.toLowerCase().includes('villa') ? 'Villa' : 'Apartment', // Infer
         bedrooms: selectedProperty.beds > 0 ? selectedProperty.beds.toString() : 'Studio',
       });
-      setPropertyData(data);
-
-      // Optionally, trigger Gemini analysis for the selected nearby property as well
-      // For now, focus on displaying its direct data
       
+      if (response.success && response.data) {
+        const propertyData = response.data as VerifiedPropertyData;
+        setPropertyData(propertyData);
+      } else {
+        setError(response.error || 'Failed to fetch property data for selected property.');
+      }
     } catch (err) {
       if (err instanceof Error && (err.message === 'API_KEY_MISSING' || err.message === 'API_KEY_MISSING_FOR_FALLBACK')) {
         setError('Gemini API key is not configured. Please set it up in Settings to fetch live property data.');
@@ -513,6 +560,127 @@ export default function PropertyLookupRefined() {
             </div>
           </form>
         </div>
+        
+        {/* Real-Time Data Status and Accuracy Indicators */}
+        {(realTimeStatus !== 'idle' || accuracyMetrics) && (
+          <div className="mb-6 space-y-4">
+            {/* Real-Time Status Indicator */}
+            <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border border-almond p-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${
+                  realTimeStatus === 'fetching' ? 'bg-yellow-500 animate-pulse' :
+                  realTimeStatus === 'verified' ? 'bg-green-500' :
+                  realTimeStatus === 'error' ? 'bg-red-500' : 'bg-gray-300'
+                }`}></div>
+                <span className="text-sm font-medium text-dubai-blue-900">
+                  {realTimeStatus === 'fetching' ? 'Fetching Real-Time Data...' :
+                   realTimeStatus === 'verified' ? 'Data Verified from Multiple Sources' :
+                   realTimeStatus === 'error' ? 'Data Verification Failed' : 'Ready to Search'}
+                </span>
+              </div>
+              
+              {accuracyMetrics && (
+                <div className="flex items-center space-x-4">
+                  <div className="text-sm text-gray-600">
+                    Sources: {accuracyMetrics.sourcesCount}
+                  </div>
+                  <div className={`text-sm font-semibold ${
+                    accuracyMetrics.overallScore >= 90 ? 'text-green-600' :
+                    accuracyMetrics.overallScore >= 75 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    Accuracy: {accuracyMetrics.overallScore}%
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Accuracy Metrics */}
+            {accuracyMetrics && (
+              <div className="bg-white rounded-lg shadow-sm border border-almond p-4">
+                <h4 className="text-sm font-semibold text-dubai-blue-900 mb-3 flex items-center">
+                  <FaInfoCircle className="mr-2 text-tuscany" />
+                  Data Verification Details
+                </h4>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      accuracyMetrics.dataVerification.priceAccuracy >= 90 ? 'text-green-600' :
+                      accuracyMetrics.dataVerification.priceAccuracy >= 75 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {accuracyMetrics.dataVerification.priceAccuracy}%
+                    </div>
+                    <div className="text-xs text-gray-600">Price Accuracy</div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      accuracyMetrics.dataVerification.developerVerification >= 90 ? 'text-green-600' :
+                      accuracyMetrics.dataVerification.developerVerification >= 75 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {accuracyMetrics.dataVerification.developerVerification}%
+                    </div>
+                    <div className="text-xs text-gray-600">Developer Verified</div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      accuracyMetrics.dataVerification.locationAccuracy >= 90 ? 'text-green-600' :
+                      accuracyMetrics.dataVerification.locationAccuracy >= 75 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {accuracyMetrics.dataVerification.locationAccuracy}%
+                    </div>
+                    <div className="text-xs text-gray-600">Location Verified</div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      accuracyMetrics.dataVerification.dateAccuracy >= 90 ? 'text-green-600' :
+                      accuracyMetrics.dataVerification.dateAccuracy >= 75 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {accuracyMetrics.dataVerification.dateAccuracy}%
+                    </div>
+                    <div className="text-xs text-gray-600">Date Accuracy</div>
+                  </div>
+                </div>
+                
+                {accuracyMetrics.sourcesUsed && accuracyMetrics.sourcesUsed.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="text-xs text-gray-600 mb-1">Data Sources:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {accuracyMetrics.sourcesUsed.map((source, index) => (
+                        <span key={index} className="inline-block bg-tuscany/10 text-tuscany text-xs px-2 py-1 rounded">
+                          {source}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-2 text-xs text-gray-500">
+                  Last Updated: {new Date(accuracyMetrics.lastUpdated).toLocaleString()}
+                </div>
+              </div>
+            )}
+
+            {/* Data Verification Warnings */}
+            {dataVerification && dataVerification.conflictingData && dataVerification.conflictingData.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <FaExclamationTriangle className="text-yellow-600 mr-2 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-yellow-800 mb-2">Data Conflicts Detected</h4>
+                    <ul className="text-sm text-yellow-700 space-y-1">
+                      {dataVerification.conflictingData.map((conflict: string, index: number) => (
+                        <li key={index}>• {conflict}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Error Message */}
         {error && (

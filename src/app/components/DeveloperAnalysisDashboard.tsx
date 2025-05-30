@@ -9,7 +9,7 @@ import {
   FaChartLine, FaThumbsUp, FaInfoCircle,
   FaSortUp, FaSortDown, FaSort, FaStar, FaHammer, FaMapMarkerAlt
 } from 'react-icons/fa';
-import propertyDataService from '../services/propertyDataService';
+import backendApiService from '../services/backendApiService';
 
 interface DeveloperData {
   name: string;
@@ -100,8 +100,12 @@ export default function DeveloperAnalysisDashboard({
       setError('');
       
       try {
-        const data = await propertyDataService.getDeveloperAnalysis(developerName);
-        setDeveloper(data);
+        const response = await backendApiService.getDeveloperAnalysis(developerName);
+        if (response.success && response.data) {
+          setDeveloper(response.data as DeveloperData);
+        } else {
+          setError(response.error || 'Failed to load developer data');
+        }
       } catch (err) {
         console.error('Error loading developer data:', err);
         setError('Failed to load developer data. Please try again.');

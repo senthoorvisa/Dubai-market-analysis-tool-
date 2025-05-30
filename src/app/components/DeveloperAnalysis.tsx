@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useDeveloperAnalysis } from '../hooks/useDeveloperAnalysis';
-import { getDeveloperInfo } from '../services/openAiService';
 import { getPropertyTransactions } from '../services/dubaiGovService';
 import Image from 'next/image';
 import ApiKeyInput from './ApiKeyInput';
 import apiKeyService from '../services/apiKeyService';
+import backendApiService from '../services/backendApiService';
+import { getPropertyInfoWithScraping } from '../services/geminiService';
 
 // Types
 interface DeveloperProject {
@@ -66,7 +66,9 @@ export const DeveloperAnalysis: React.FC = () => {
   const [developerName, setDeveloperName] = useState<string>('');
   const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
   const [developerNews, setDeveloperNews] = useState<string[]>([]);
-  const { loading: mockDataLoading, error: mockDataError, developerAnalysis, fetchDeveloperAnalysis } = useDeveloperAnalysis();
+  const [mockDataLoading, setMockDataLoading] = useState<boolean>(false);
+  const [mockDataError, setMockDataError] = useState<string | null>(null);
+  const [developerAnalysis, setDeveloperAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -108,15 +110,18 @@ export const DeveloperAnalysis: React.FC = () => {
         throw new Error('Please provide an OpenAI API key to access AI-powered analysis');
       }
       
-      // Try to get real-time AI analysis from OpenAI
+      // Try to get real-time AI analysis from Gemini
       try {
-        const aiResponse = await getDeveloperInfo(developerName);
+        const aiResponse = await getPropertyInfoWithScraping({ 
+          location: developerName,
+          propertyType: 'Developer Analysis'
+        });
         
         if (!aiResponse.success) {
           throw new Error(aiResponse.error || 'Failed to get developer information');
         }
         
-        setAiAnalysis(aiResponse.data);
+        setAiAnalysis(aiResponse.data ? (typeof aiResponse.data === 'string' ? aiResponse.data : JSON.stringify(aiResponse.data)) : null);
       } catch (aiError) {
         console.error('Error with OpenAI analysis:', aiError);
         // Check if it's an API key error
@@ -237,6 +242,25 @@ export const DeveloperAnalysis: React.FC = () => {
         {line}
       </p>
     ));
+  };
+
+  // Mock function to replace useDeveloperAnalysis hook
+  const fetchDeveloperAnalysis = async (name: string) => {
+    setMockDataLoading(true);
+    setMockDataError(null);
+    
+    try {
+      const response = await backendApiService.getDeveloperAnalysis(name);
+      if (response.success) {
+        setDeveloperAnalysis(response.data);
+      } else {
+        setMockDataError(response.error || 'Failed to fetch developer analysis');
+      }
+    } catch (err) {
+      setMockDataError('Failed to fetch developer analysis');
+    } finally {
+      setMockDataLoading(false);
+    }
   };
 
   return (

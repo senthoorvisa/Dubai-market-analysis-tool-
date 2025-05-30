@@ -99,6 +99,20 @@ class BackendApiService {
     return this.makeRequest(`/api/properties/details/${id}`);
   }
 
+  async getPropertyLookup(params: any) {
+    return this.makeRequest('/api/properties/lookup', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getVerifiedPropertyData(params: any) {
+    return this.makeRequest('/api/properties/verified-lookup', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
   async searchProperties(params: any) {
     const queryString = new URLSearchParams(params).toString();
     return this.makeRequest(`/api/properties/search?${queryString}`);

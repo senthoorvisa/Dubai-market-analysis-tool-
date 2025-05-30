@@ -451,6 +451,235 @@ class DLDAPIClient {
       };
     }
   }
+
+  /**
+   * Get market summary statistics
+   */
+  async getMarketSummary() {
+    try {
+      logger.info('Fetching market summary from DLD API');
+
+      const data = await this.makeRequest('/v1/market/summary');
+      
+      return {
+        totalRegisteredProperties: data.total_properties,
+        transactions: data.recent_transactions || [],
+        minPrice: data.price_range?.min,
+        maxPrice: data.price_range?.max,
+        averagePrice: data.average_price,
+        lastUpdated: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error('Error fetching market summary:', error);
+      // Return fallback data structure
+      return {
+        totalRegisteredProperties: 0,
+        transactions: [],
+        minPrice: 0,
+        maxPrice: 0,
+        averagePrice: 0,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get top areas by transaction volume
+   */
+  async getTopAreasByTransactionVolume(limit = 10) {
+    try {
+      logger.info('Fetching top areas by transaction volume');
+
+      const data = await this.makeRequest('/v1/analytics/top-areas', {
+        limit,
+        sort_by: 'transaction_volume',
+        period: '12_months'
+      });
+
+      return data.areas?.map(area => ({
+        name: area.area_name,
+        transactionCount: area.transaction_count,
+        averagePrice: area.average_price,
+        priceChange: area.price_change_percent
+      })) || [];
+
+    } catch (error) {
+      logger.error('Error fetching top areas:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get top developers by project volume
+   */
+  async getTopDevelopersByVolume(limit = 10) {
+    try {
+      logger.info('Fetching top developers by volume');
+
+      const data = await this.makeRequest('/v1/analytics/top-developers', {
+        limit,
+        sort_by: 'project_count',
+        period: '12_months'
+      });
+
+      return data.developers?.map(dev => ({
+        name: dev.developer_name,
+        projectCount: dev.project_count,
+        totalUnits: dev.total_units,
+        totalValue: dev.total_value
+      })) || [];
+
+    } catch (error) {
+      logger.error('Error fetching top developers:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get property type distribution
+   */
+  async getPropertyTypeDistribution() {
+    try {
+      logger.info('Fetching property type distribution');
+
+      const data = await this.makeRequest('/v1/analytics/property-types');
+
+      return {
+        apartment: data.distribution?.apartment || 0,
+        villa: data.distribution?.villa || 0,
+        townhouse: data.distribution?.townhouse || 0,
+        penthouse: data.distribution?.penthouse || 0,
+        studio: data.distribution?.studio || 0,
+        commercial: data.distribution?.commercial || 0,
+        other: data.distribution?.other || 0
+      };
+
+    } catch (error) {
+      logger.error('Error fetching property type distribution:', error);
+      return {
+        apartment: 0,
+        villa: 0,
+        townhouse: 0,
+        penthouse: 0,
+        studio: 0,
+        commercial: 0,
+        other: 0
+      };
+    }
+  }
+
+  /**
+   * Verify developer information against official registry
+   */
+  async verifyDeveloper(developerName) {
+    try {
+      logger.info('Verifying developer information', { developerName });
+
+      const data = await this.makeRequest('/v1/developers/verify', {
+        developer_name: developerName
+      });
+
+      return {
+        isVerified: data.verified || false,
+        officialName: data.official_name,
+        licenseNumber: data.license_number,
+        reraLicense: data.rera_license,
+        establishedYear: data.established_year,
+        totalProjects: data.total_projects,
+        activeProjects: data.active_projects,
+        verificationDate: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error('Error verifying developer:', error);
+      return {
+        isVerified: false,
+        officialName: null,
+        licenseNumber: null,
+        reraLicense: null,
+        establishedYear: null,
+        totalProjects: 0,
+        activeProjects: 0,
+        verificationDate: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get real-time property pricing data
+   */
+  async getRealTimePricing(propertyId) {
+    try {
+      logger.info('Fetching real-time pricing data', { propertyId });
+
+      const data = await this.makeRequest('/v1/properties/pricing', {
+        property_id: propertyId,
+        include_history: true
+      });
+
+      return {
+        currentPrice: data.current_price,
+        priceHistory: data.price_history || [],
+        marketValue: data.market_value,
+        pricePerSqft: data.price_per_sqft,
+        lastSalePrice: data.last_sale_price,
+        lastSaleDate: data.last_sale_date,
+        priceChange: data.price_change_percent,
+        lastUpdated: data.last_updated || new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error('Error fetching real-time pricing:', error);
+      return {
+        currentPrice: null,
+        priceHistory: [],
+        marketValue: null,
+        pricePerSqft: null,
+        lastSalePrice: null,
+        lastSaleDate: null,
+        priceChange: null,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Validate property launch date
+   */
+  async validatePropertyLaunchDate(propertyId) {
+    try {
+      logger.info('Validating property launch date', { propertyId });
+
+      const data = await this.makeRequest('/v1/properties/timeline', {
+        property_id: propertyId
+      });
+
+      return {
+        officialLaunchDate: data.launch_date,
+        constructionStartDate: data.construction_start,
+        expectedCompletionDate: data.expected_completion,
+        actualCompletionDate: data.actual_completion,
+        permitIssueDate: data.permit_issue_date,
+        approvalDate: data.approval_date,
+        isVerified: data.verified || false,
+        lastUpdated: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error('Error validating property launch date:', error);
+      return {
+        officialLaunchDate: null,
+        constructionStartDate: null,
+        expectedCompletionDate: null,
+        actualCompletionDate: null,
+        permitIssueDate: null,
+        approvalDate: null,
+        isVerified: false,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+  }
 }
 
 module.exports = DLDAPIClient; 
