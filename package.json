@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node services/server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node services/server.js",
     "lint": "next lint",
-    "server": "node services/server.js"
+    "frontend-only": "next dev",
+    "backend-only": "node services/server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

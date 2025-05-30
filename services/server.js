@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const next = require('next');
 require('dotenv').config();
 
 // Import service routes
@@ -15,51 +16,67 @@ const rentalScheduler = require('./rentalService/scheduler');
 const developerScheduler = require('./developerAnalysis/scheduler');
 const demandScheduler = require('./marketDemand/scheduler');
 
+const dev = process.env.NODE_ENV !== 'production';
+const nextApp = next({ dev, dir: path.join(__dirname, '..') });
+const handle = nextApp.getRequestHandler();
+
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Prepare Next.js app
+nextApp.prepare().then(() => {
+  // Middleware
+  app.use(cors());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// API Routes
-app.use('/api/rentals', rentalRoutes);
-app.use('/api/properties', propertyRoutes);
-app.use('/api/developers', developerRoutes);
-app.use('/api/demand', demandRoutes);
-app.use('/api/ai', aiRoutes);
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: err.message,
-    timestamp: new Date().toISOString()
+  // Health check endpoint
+  app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
   });
-});
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Dubai Market Analysis Backend Server running on port ${PORT}`);
-  console.log(`📊 Services available:`);
-  console.log(`   - Rental Analysis: http://localhost:${PORT}/api/rentals`);
-  console.log(`   - Property Lookup: http://localhost:${PORT}/api/properties`);
-  console.log(`   - Developer Analysis: http://localhost:${PORT}/api/developers`);
-  console.log(`   - Market Demand: http://localhost:${PORT}/api/demand`);
-  console.log(`   - AI Services: http://localhost:${PORT}/api/ai`);
-  
-  // Start schedulers
-  console.log('🕐 Starting scheduled jobs...');
-  rentalScheduler.start();
-  developerScheduler.start();
-  demandScheduler.start();
+  // API Routes (these take precedence over Next.js routes)
+  app.use('/api/rentals', rentalRoutes);
+  app.use('/api/properties', propertyRoutes);
+  app.use('/api/developers', developerRoutes);
+  app.use('/api/demand', demandRoutes);
+  app.use('/api/ai', aiRoutes);
+
+  // Error handling middleware for API routes
+  app.use('/api/*', (err, req, res, next) => {
+    console.error('API Error:', err);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: err.message,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Handle all other routes with Next.js
+  app.all('*', (req, res) => {
+    return handle(req, res);
+  });
+
+  // Start server
+  app.listen(PORT, () => {
+    console.log(`🚀 Dubai Market Analysis Tool running on port ${PORT}`);
+    console.log(`🌐 Frontend: http://localhost:${PORT}`);
+    console.log(`📊 Backend APIs:`);
+    console.log(`   - Rental Analysis: http://localhost:${PORT}/api/rentals`);
+    console.log(`   - Property Lookup: http://localhost:${PORT}/api/properties`);
+    console.log(`   - Developer Analysis: http://localhost:${PORT}/api/developers`);
+    console.log(`   - Market Demand: http://localhost:${PORT}/api/demand`);
+    console.log(`   - AI Services: http://localhost:${PORT}/api/ai`);
+    
+    // Start schedulers
+    console.log('🕐 Starting scheduled jobs...');
+    rentalScheduler.start();
+    developerScheduler.start();
+    demandScheduler.start();
+  });
+}).catch((ex) => {
+  console.error('Error starting server:', ex);
+  process.exit(1);
 });
 
 module.exports = app; 

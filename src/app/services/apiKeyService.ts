@@ -1,6 +1,4 @@
-import { updateApiKey } from '../services/initOpenAi';
-
-// API Key service for secure management of OpenAI API keys
+// API Key service for secure management of API keys
 // Follows security best practices as per UAE PDPL regulations
 
 interface ApiKeyMetadata {
@@ -51,7 +49,7 @@ const storeKeyMetadata = (keyHash: string) => {
     keyHash,
   };
   
-  localStorage.setItem('openai_key_metadata', JSON.stringify(metadata));
+  localStorage.setItem('api_key_metadata', JSON.stringify(metadata));
 };
 
 /**
@@ -60,7 +58,7 @@ const storeKeyMetadata = (keyHash: string) => {
 const checkKeyRotation = (): boolean => {
   if (typeof window === 'undefined') return false;
   
-  const metadataStr = localStorage.getItem('openai_key_metadata');
+  const metadataStr = localStorage.getItem('api_key_metadata');
   if (!metadataStr) return false;
   
   try {
@@ -99,15 +97,15 @@ export const secureSetApiKey = (apiKey: string, orgId?: string): boolean => {
       return false;
     }
     
-    // Check for valid API key formats - support old, new and project-scoped formats
-    const isValidFormat = apiKey.startsWith('sk-') || apiKey.startsWith('sk-or-v1-') || apiKey.startsWith('sk-proj-');
+    // Check for valid API key formats - support Gemini and OpenAI formats
+    const isValidFormat = apiKey.startsWith('sk-') || 
+                         apiKey.startsWith('sk-or-v1-') || 
+                         apiKey.startsWith('sk-proj-') ||
+                         apiKey.startsWith('AIza'); // Gemini API key format
     if (!isValidFormat) {
-      console.error('Invalid API key format - must start with sk-, sk-or-v1-, or sk-proj-');
+      console.error('Invalid API key format');
       return false;
     }
-    
-    // Update the OpenAI instance
-    updateApiKey(apiKey, orgId);
     
     // Store metadata securely - not the actual key
     const keyHash = createKeyHash(apiKey);
