@@ -1,285 +1,455 @@
 const axios = require('axios');
-const cache = require('../utils/redis');
 const { createServiceLogger } = require('../utils/logger');
+const cache = require('../utils/redis');
 
 const logger = createServiceLogger('DLD_CLIENT');
 
 class DLDAPIClient {
   constructor() {
     this.apiKey = process.env.DLD_API_KEY;
-    this.baseUrl = process.env.DLD_API_BASE_URL || 'https://api.dubailand.gov.ae';
+    this.apiSecret = process.env.DLD_API_SECRET;
+    this.baseUrl = process.env.DLD_BASE_URL || 'https://api.dld.gov.ae';
+    this.accessToken = null;
+    this.tokenExpiry = null;
     this.rateLimitDelay = 1000; // 1 second between requests
-    this.maxRetries = 3;
     this.lastRequestTime = 0;
   }
 
-  async authenticate() {
+  /**
+   * Rate limiting helper
+   */
+  async enforceRateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < this.rateLimitDelay) {
+      const waitTime = this.rateLimitDelay - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    this.lastRequestTime = Date.now();
+  }
+
+  /**
+   * Get or refresh access token
+   */
+  async getAccessToken() {
     try {
-      // Mock authentication - replace with actual DLD auth when available
-      if (!this.apiKey) {
-        logger.warn('DLD API key not configured, using mock mode');
-        return { token: 'mock_token', expiresAt: Date.now() + 3600000 };
+      // Check if we have a valid token
+      if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+        return this.accessToken;
       }
 
+      if (!this.apiKey || !this.apiSecret) {
+        throw new Error('DLD API credentials not configured. Please set DLD_API_KEY and DLD_API_SECRET environment variables.');
+      }
+
+      logger.info('Requesting new DLD access token');
+
       const response = await axios.post(`${this.baseUrl}/auth/token`, {
-        apiKey: this.apiKey
+        api_key: this.apiKey,
+        api_secret: this.apiSecret,
+        grant_type: 'client_credentials'
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
 
-      logger.info('DLD API authentication successful');
-      return response.data;
+      this.accessToken = response.data.access_token;
+      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000; // Refresh 1 minute early
+
+      logger.info('DLD access token obtained successfully');
+      return this.accessToken;
+
     } catch (error) {
-      logger.error('DLD API authentication failed', { error: error.message });
-      throw new Error('DLD API authentication failed');
+      logger.error('Failed to get DLD access token:', error);
+      throw new Error(`DLD authentication failed: ${error.message}`);
     }
   }
 
-  async makeRequest(endpoint, params = {}, retryCount = 0) {
+  /**
+   * Make authenticated API request
+   */
+  async makeRequest(endpoint, params = {}) {
     try {
-      // Rate limiting
-      const now = Date.now();
-      const timeSinceLastRequest = now - this.lastRequestTime;
-      if (timeSinceLastRequest < this.rateLimitDelay) {
-        await new Promise(resolve => 
-          setTimeout(resolve, this.rateLimitDelay - timeSinceLastRequest)
-        );
-      }
-      this.lastRequestTime = Date.now();
-
-      const config = {
-        method: 'GET',
-        url: `${this.baseUrl}${endpoint}`,
-        params,
+      await this.enforceRateLimit();
+      
+      const token = await this.getAccessToken();
+      
+      const response = await axios.get(`${this.baseUrl}${endpoint}`, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey || 'mock_token'}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        timeout: 10000
-      };
+        params,
+        timeout: 30000 // 30 second timeout
+      });
 
-      const response = await axios(config);
       return response.data;
 
     } catch (error) {
-      logger.error('DLD API request failed', { 
-        endpoint, 
-        params, 
-        error: error.message, 
-        retryCount 
-      });
+      if (error.response?.status === 401) {
+        // Token expired, clear it and retry once
+        this.accessToken = null;
+        this.tokenExpiry = null;
+        
+        logger.warn('DLD token expired, retrying with new token');
+        
+        const token = await this.getAccessToken();
+        const response = await axios.get(`${this.baseUrl}${endpoint}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          params,
+          timeout: 30000
+        });
 
-      // Retry logic
-      if (retryCount < this.maxRetries && this.shouldRetry(error)) {
-        logger.info('Retrying DLD API request', { endpoint, retryCount: retryCount + 1 });
-        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 2000));
-        return this.makeRequest(endpoint, params, retryCount + 1);
+        return response.data;
       }
 
+      logger.error(`DLD API request failed for ${endpoint}:`, error);
       throw error;
     }
   }
 
-  shouldRetry(error) {
-    if (!error.response) return true; // Network error
-    const status = error.response.status;
-    return status === 429 || status >= 500; // Rate limit or server error
-  }
-
-  async getPropertyById(propertyId) {
+  /**
+   * Get property details by ID
+   */
+  async getPropertyDetails(propertyId) {
     try {
-      const cacheKey = `property:${propertyId}`;
+      const cacheKey = `dld:property:${propertyId}`;
       
       // Try cache first
       const cached = await cache.get(cacheKey);
       if (cached) {
-        logger.debug('Property data found in cache', { propertyId });
-        return cached;
+        logger.info(`Property details retrieved from cache: ${propertyId}`);
+        return { ...cached, fromCache: true };
       }
 
-      logger.info('Fetching property from DLD API', { propertyId });
+      logger.info(`Fetching property details from DLD API: ${propertyId}`);
 
-      // Mock implementation - replace with actual API call
-      const mockProperty = {
-        propertyId: propertyId,
-        officialName: `Property ${propertyId}`,
-        developer: this.getMockDeveloper(),
-        projectName: this.getMockProjectName(),
-        locationCoordinates: {
-          latitude: 25.0657 + (Math.random() - 0.5) * 0.1,
-          longitude: 55.1713 + (Math.random() - 0.5) * 0.1
+      const data = await this.makeRequest('/v1/properties/details', {
+        property_id: propertyId
+      });
+
+      if (!data.property) {
+        throw new Error(`Property not found: ${propertyId}`);
+      }
+
+      const propertyDetails = {
+        propertyId: data.property.property_id,
+        officialName: data.property.property_name,
+        developer: data.property.developer_name,
+        projectName: data.property.project_name,
+        location: data.property.location,
+        area: data.property.area,
+        subArea: data.property.sub_area,
+        propertyType: data.property.property_type,
+        propertySubType: data.property.property_sub_type,
+        bedrooms: data.property.bedrooms,
+        bathrooms: data.property.bathrooms,
+        size: data.property.property_size,
+        plotSize: data.property.plot_size,
+        buildingAge: data.property.building_age,
+        completionDate: data.property.completion_date,
+        currentValuation: data.property.current_valuation,
+        lastSalePrice: data.property.last_sale_price,
+        lastSaleDate: data.property.last_sale_date,
+        coordinates: {
+          lat: data.property.latitude,
+          lng: data.property.longitude
         },
-        salePriceHistory: this.generateMockPriceHistory(),
-        plotSize: Math.floor(Math.random() * 5000) + 1000,
-        builtUpArea: Math.floor(Math.random() * 3000) + 800,
-        propertyType: this.getMockPropertyType(),
-        registrationDate: this.getRandomDate(),
-        lastSaleDate: this.getRandomDate(),
-        currentValuation: Math.floor(Math.random() * 2000000) + 500000,
-        status: 'Active'
+        amenities: data.property.amenities || [],
+        nearestLandmarks: data.property.landmarks || [],
+        accessibility: data.property.accessibility || {},
+        utilities: data.property.utilities || {},
+        retrievedAt: new Date().toISOString()
       };
 
       // Cache for 24 hours
-      await cache.set(cacheKey, mockProperty, 24 * 3600);
+      await cache.set(cacheKey, propertyDetails, 86400);
 
-      logger.info('Property data cached successfully', { propertyId });
-      return mockProperty;
+      logger.info(`Property details retrieved successfully: ${propertyId}`);
+      return propertyDetails;
 
     } catch (error) {
-      logger.error('Error fetching property', { propertyId, error: error.message });
+      logger.error(`Error fetching property details for ${propertyId}:`, error);
       throw error;
     }
   }
 
+  /**
+   * Search properties
+   */
   async searchProperties(query, filters = {}) {
     try {
-      const { location, page = 1, limit = 20 } = filters;
+      const cacheKey = `dld:search:${JSON.stringify({ query, filters })}`;
       
-      const cacheKey = `property_search:${JSON.stringify({ query, location, page, limit })}`;
-      
-      // Try cache first
+      // Try cache first (shorter TTL for search results)
       const cached = await cache.get(cacheKey);
       if (cached) {
-        logger.debug('Property search results found in cache');
-        return cached;
+        logger.info('Property search results retrieved from cache');
+        return { ...cached, fromCache: true };
       }
 
-      logger.info('Searching properties in DLD API', { query, filters });
+      logger.info(`Searching properties in DLD API: "${query}"`);
 
-      // Mock implementation - replace with actual API call
-      const mockResults = this.generateMockSearchResults(query, filters);
+      const params = {
+        q: query,
+        limit: filters.limit || 20,
+        offset: filters.offset || 0
+      };
+
+      // Add filters
+      if (filters.area) params.area = filters.area;
+      if (filters.propertyType) params.property_type = filters.propertyType;
+      if (filters.bedrooms) params.bedrooms = filters.bedrooms;
+      if (filters.minPrice) params.min_price = filters.minPrice;
+      if (filters.maxPrice) params.max_price = filters.maxPrice;
+      if (filters.minSize) params.min_size = filters.minSize;
+      if (filters.maxSize) params.max_size = filters.maxSize;
+
+      const data = await this.makeRequest('/v1/properties/search', params);
+
+      const searchResults = {
+        results: (data.properties || []).map(property => ({
+          propertyId: property.property_id,
+          officialName: property.property_name,
+          developer: property.developer_name,
+          projectName: property.project_name,
+          location: property.location,
+          area: property.area,
+          propertyType: property.property_type,
+          bedrooms: property.bedrooms,
+          size: property.property_size,
+          currentValuation: property.current_valuation,
+          lastSalePrice: property.last_sale_price,
+          coordinates: {
+            lat: property.latitude,
+            lng: property.longitude
+          },
+          relevanceScore: property.relevance_score || 0
+        })),
+        totalResults: data.total_count || 0,
+        query,
+        filters,
+        searchedAt: new Date().toISOString()
+      };
 
       // Cache for 1 hour
-      await cache.set(cacheKey, mockResults, 3600);
+      await cache.set(cacheKey, searchResults, 3600);
 
-      return mockResults;
+      logger.info(`Property search completed: ${searchResults.results.length} results found`);
+      return searchResults;
 
     } catch (error) {
-      logger.error('Error searching properties', { query, filters, error: error.message });
+      logger.error(`Error searching properties for "${query}":`, error);
       throw error;
     }
   }
 
-  async getPropertiesByDeveloper(developerName, pagination = {}) {
+  /**
+   * Get properties by developer
+   */
+  async getPropertiesByDeveloper(developerName, filters = {}) {
     try {
-      const { page = 1, limit = 50 } = pagination;
+      const cacheKey = `dld:developer:${developerName}:${JSON.stringify(filters)}`;
       
-      logger.info('Fetching properties by developer', { developerName, page, limit });
-
-      // Mock implementation
-      const properties = [];
-      const totalProperties = Math.floor(Math.random() * 200) + 50;
-      const startIndex = (page - 1) * limit;
-      const endIndex = Math.min(startIndex + limit, totalProperties);
-
-      for (let i = startIndex; i < endIndex; i++) {
-        properties.push({
-          propertyId: `dev_${developerName.replace(/\s+/g, '_')}_${i + 1}`,
-          officialName: `${developerName} Property ${i + 1}`,
-          developer: developerName,
-          projectName: this.getMockProjectName(),
-          currentValuation: Math.floor(Math.random() * 2000000) + 500000,
-          registrationDate: this.getRandomDate(),
-          status: 'Active'
-        });
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        logger.info(`Developer properties retrieved from cache: ${developerName}`);
+        return { ...cached, fromCache: true };
       }
 
+      logger.info(`Fetching properties by developer from DLD API: ${developerName}`);
+
+      const params = {
+        developer_name: developerName,
+        limit: filters.limit || 50,
+        offset: filters.offset || 0
+      };
+
+      if (filters.status) params.status = filters.status;
+      if (filters.propertyType) params.property_type = filters.propertyType;
+
+      const data = await this.makeRequest('/v1/developers/properties', params);
+
+      const developerProperties = {
+        developer: developerName,
+        properties: (data.properties || []).map(property => ({
+          propertyId: property.property_id,
+          projectName: property.project_name,
+          propertyName: property.property_name,
+          location: property.location,
+          area: property.area,
+          propertyType: property.property_type,
+          status: property.status,
+          totalUnits: property.total_units,
+          soldUnits: property.sold_units,
+          availableUnits: property.available_units,
+          startDate: property.start_date,
+          completionDate: property.completion_date,
+          averagePrice: property.average_price,
+          coordinates: {
+            lat: property.latitude,
+            lng: property.longitude
+          }
+        })),
+        totalProperties: data.total_count || 0,
+        retrievedAt: new Date().toISOString()
+      };
+
+      // Cache for 6 hours
+      await cache.set(cacheKey, developerProperties, 21600);
+
+      logger.info(`Developer properties retrieved: ${developerProperties.properties.length} properties`);
+      return developerProperties;
+
+    } catch (error) {
+      logger.error(`Error fetching properties for developer ${developerName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get property price history
+   */
+  async getPropertyPriceHistory(propertyId) {
+    try {
+      const cacheKey = `dld:price_history:${propertyId}`;
+      
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        logger.info(`Price history retrieved from cache: ${propertyId}`);
+        return { ...cached, fromCache: true };
+      }
+
+      logger.info(`Fetching price history from DLD API: ${propertyId}`);
+
+      const data = await this.makeRequest('/v1/properties/price-history', {
+        property_id: propertyId
+      });
+
+      const priceHistory = {
+        propertyId,
+        transactions: (data.transactions || []).map(transaction => ({
+          transactionId: transaction.transaction_id,
+          transactionDate: transaction.transaction_date,
+          transactionType: transaction.transaction_type,
+          amount: transaction.amount,
+          pricePerSqFt: transaction.price_per_sqft,
+          buyer: transaction.buyer_name,
+          seller: transaction.seller_name,
+          mortgageAmount: transaction.mortgage_amount,
+          registrationFee: transaction.registration_fee
+        })),
+        priceMetrics: {
+          currentValue: data.current_valuation,
+          averagePrice: data.average_price,
+          priceAppreciation: data.price_appreciation,
+          lastSalePrice: data.last_sale_price,
+          lastSaleDate: data.last_sale_date,
+          totalTransactions: data.total_transactions
+        },
+        retrievedAt: new Date().toISOString()
+      };
+
+      // Cache for 12 hours
+      await cache.set(cacheKey, priceHistory, 43200);
+
+      logger.info(`Price history retrieved: ${priceHistory.transactions.length} transactions`);
+      return priceHistory;
+
+    } catch (error) {
+      logger.error(`Error fetching price history for ${propertyId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get market statistics for an area
+   */
+  async getAreaMarketStats(area) {
+    try {
+      const cacheKey = `dld:market_stats:${area}`;
+      
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        logger.info(`Market stats retrieved from cache: ${area}`);
+        return { ...cached, fromCache: true };
+      }
+
+      logger.info(`Fetching market statistics from DLD API: ${area}`);
+
+      const data = await this.makeRequest('/v1/market/area-statistics', {
+        area: area
+      });
+
+      const marketStats = {
+        area,
+        statistics: {
+          totalProperties: data.total_properties,
+          averagePrice: data.average_price,
+          medianPrice: data.median_price,
+          pricePerSqFt: data.price_per_sqft,
+          totalTransactions: data.total_transactions,
+          transactionVolume: data.transaction_volume,
+          priceGrowth: data.price_growth,
+          inventoryLevel: data.inventory_level,
+          daysOnMarket: data.days_on_market
+        },
+        propertyTypes: data.property_types || [],
+        priceRanges: data.price_ranges || [],
+        trends: data.trends || [],
+        retrievedAt: new Date().toISOString()
+      };
+
+      // Cache for 4 hours
+      await cache.set(cacheKey, marketStats, 14400);
+
+      logger.info(`Market statistics retrieved for: ${area}`);
+      return marketStats;
+
+    } catch (error) {
+      logger.error(`Error fetching market stats for ${area}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Health check for DLD API
+   */
+  async healthCheck() {
+    try {
+      const token = await this.getAccessToken();
+      
+      const response = await axios.get(`${this.baseUrl}/v1/health`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
       return {
-        properties,
-        pagination: {
-          page,
-          limit,
-          total: totalProperties,
-          pages: Math.ceil(totalProperties / limit),
-          hasNext: page < Math.ceil(totalProperties / limit),
-          hasPrev: page > 1
-        }
+        status: 'healthy',
+        apiVersion: response.data.version,
+        timestamp: new Date().toISOString()
       };
 
     } catch (error) {
-      logger.error('Error fetching properties by developer', { 
-        developerName, 
-        error: error.message 
-      });
-      throw error;
+      logger.error('DLD API health check failed:', error);
+      return {
+        status: 'unhealthy',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      };
     }
-  }
-
-  // Helper methods for mock data generation
-  getMockDeveloper() {
-    const developers = [
-      'Emaar Properties', 'DAMAC Properties', 'Dubai Properties', 
-      'Nakheel', 'Sobha Realty', 'Meraas', 'Azizi Developments',
-      'Ellington Properties', 'Omniyat', 'Deyaar Development'
-    ];
-    return developers[Math.floor(Math.random() * developers.length)];
-  }
-
-  getMockProjectName() {
-    const projects = [
-      'Downtown Views', 'Marina Residences', 'Palm Gardens',
-      'Sky Heights', 'Golden Square', 'Crystal Towers',
-      'Emerald Bay', 'Diamond District', 'Platinum Plaza'
-    ];
-    return projects[Math.floor(Math.random() * projects.length)];
-  }
-
-  getMockPropertyType() {
-    const types = ['Apartment', 'Villa', 'Townhouse', 'Penthouse', 'Studio'];
-    return types[Math.floor(Math.random() * types.length)];
-  }
-
-  getRandomDate() {
-    const start = new Date(2020, 0, 1);
-    const end = new Date();
-    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime())).toISOString();
-  }
-
-  generateMockPriceHistory() {
-    const history = [];
-    const basePrice = Math.floor(Math.random() * 1500000) + 500000;
-    let currentPrice = basePrice;
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      
-      // Add some variation
-      currentPrice += (Math.random() - 0.5) * 50000;
-      currentPrice = Math.max(currentPrice, basePrice * 0.8); // Don't go below 80% of base
-      
-      history.unshift({
-        date: date.toISOString(),
-        price: Math.floor(currentPrice)
-      });
-    }
-    
-    return history;
-  }
-
-  generateMockSearchResults(query, filters) {
-    const results = [];
-    const totalResults = Math.floor(Math.random() * 100) + 20;
-    const limit = Math.min(filters.limit || 20, totalResults);
-
-    for (let i = 0; i < limit; i++) {
-      results.push({
-        propertyId: `search_${Date.now()}_${i}`,
-        officialName: `${query} Property ${i + 1}`,
-        developer: this.getMockDeveloper(),
-        projectName: this.getMockProjectName(),
-        location: filters.location || 'Dubai',
-        currentValuation: Math.floor(Math.random() * 2000000) + 500000,
-        propertyType: this.getMockPropertyType(),
-        relevanceScore: Math.random() * 100
-      });
-    }
-
-    return {
-      results,
-      totalResults,
-      query,
-      filters,
-      searchedAt: new Date().toISOString()
-    };
   }
 }
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const { BayutScraper, DLDAPIClient } = require('./scraper');
+const RentalDataScraper = require('./scraper');
 const RentalDataProcessor = require('./dataProcessor');
 const { createServiceLogger } = require('../utils/logger');
 
@@ -7,8 +7,7 @@ const router = express.Router();
 const logger = createServiceLogger('RENTAL_ROUTES');
 
 // Initialize services
-const bayutScraper = new BayutScraper();
-const dldClient = new DLDAPIClient();
+const rentalScraper = new RentalDataScraper();
 const dataProcessor = new RentalDataProcessor();
 
 // GET /api/rentals/current - Returns today's processed data
@@ -101,19 +100,13 @@ router.post('/refresh', async (req, res) => {
     logger.info('Manual rental data refresh triggered', { filters });
     
     // Initialize scraper
-    await bayutScraper.init();
+    await rentalScraper.init();
     
     try {
-      // Fetch data from both sources
-      const [bayutData, dldData] = await Promise.all([
-        bayutScraper.scrapeRentals(filters),
-        dldClient.fetchRentalTransactions(filters)
-      ]);
+      // Fetch data from scraper (includes both Bayut and DLD)
+      const scraperData = await rentalScraper.scrapeRentals(filters);
       
-      // Combine data
-      const allData = [...bayutData, ...dldData];
-      
-      if (allData.length === 0) {
+      if (scraperData.length === 0) {
         return res.json({
           message: 'No new rental data found',
           result: {
@@ -126,21 +119,19 @@ router.post('/refresh', async (req, res) => {
       }
       
       // Process and save data
-      const result = await dataProcessor.processAndSave(allData);
+      const result = await dataProcessor.processAndSave(scraperData);
       
       res.json({
         message: 'Rental data refreshed successfully',
         result,
         sources: {
-          bayut: bayutData.length,
-          dld: dldData.length,
-          total: allData.length
+          totalRecords: scraperData.length
         },
         refreshedAt: new Date().toISOString()
       });
       
     } finally {
-      await bayutScraper.close();
+      await rentalScraper.close();
     }
 
   } catch (error) {

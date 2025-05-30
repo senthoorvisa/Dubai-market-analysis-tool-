@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { BayutScraper, DLDAPIClient } = require('./scraper');
+const RentalDataScraper = require('./scraper');
 const RentalDataProcessor = require('./dataProcessor');
 const { createServiceLogger } = require('../utils/logger');
 
@@ -13,8 +13,7 @@ class RentalScheduler {
     this.task = null;
     
     // Initialize services
-    this.bayutScraper = new BayutScraper();
-    this.dldClient = new DLDAPIClient();
+    this.rentalScraper = new RentalDataScraper();
     this.dataProcessor = new RentalDataProcessor();
   }
 
@@ -31,7 +30,7 @@ class RentalScheduler {
       logger.info('Starting scheduled rental data refresh');
 
       // Initialize scraper
-      await this.bayutScraper.init();
+      await this.rentalScraper.initBrowser();
 
       try {
         // Default filters for daily scraping
@@ -39,42 +38,42 @@ class RentalScheduler {
           maxPages: 10 // Limit pages for daily refresh
         };
 
-        // Fetch data from both sources
-        const [bayutData, dldData] = await Promise.all([
-          this.bayutScraper.scrapeRentals(defaultFilters),
-          this.dldClient.fetchRentalTransactions(defaultFilters)
-        ]);
+        // Fetch data from scraper (includes both Bayut and DLD)
+        const scraperData = await this.rentalScraper.scrapeAllRentalData();
 
-        // Combine data
-        const allData = [...bayutData, ...dldData];
-
-        if (allData.length === 0) {
+        if (scraperData.totalRecords === 0) {
           logger.warn('No new rental data found during scheduled refresh');
           return;
         }
+
+        // Combine all data
+        const allData = [...scraperData.dldData, ...scraperData.bayutData];
 
         // Process and save data
         const result = await this.dataProcessor.processAndSave(allData);
 
         logger.info('Scheduled rental data refresh completed successfully', {
           sources: {
-            bayut: bayutData.length,
-            dld: dldData.length,
-            total: allData.length
+            dld: scraperData.dldData.length,
+            bayut: scraperData.bayutData.length,
+            total: scraperData.totalRecords
           },
-          processed: result.processedCount,
+          processed: result.processedCount || allData.length,
           savedPaths: result.savedPaths
         });
 
         // Send success notification (if monitoring service is configured)
         this.sendNotification('success', {
           message: 'Rental data refresh completed successfully',
-          totalRecords: result.processedCount,
-          sources: { bayut: bayutData.length, dld: dldData.length }
+          totalRecords: scraperData.totalRecords,
+          sources: { 
+            dld: scraperData.dldData.length, 
+            bayut: scraperData.bayutData.length 
+          }
         });
 
       } finally {
-        await this.bayutScraper.close();
+        await this.rentalScraper.closeBrowser();
       }
 
     } catch (error) {

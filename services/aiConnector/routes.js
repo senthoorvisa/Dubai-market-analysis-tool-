@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const GeminiClient = require('./geminiClient');
-const { logger } = require('../utils/logger');
+const { createServiceLogger } = require('../utils/logger');
 
-// Initialize Gemini client
-let geminiClient;
+const logger = createServiceLogger('AI_ROUTES');
+
+// Initialize Gemini client with error handling
+let geminiClient = null;
 try {
+  const GeminiClient = require('./geminiClient');
   geminiClient = new GeminiClient();
   logger.info('Gemini AI client initialized successfully');
 } catch (error) {
-  logger.error('Failed to initialize Gemini client:', error);
+  logger.warn(`Gemini client not available: ${error.message}`);
+  geminiClient = null;
 }
 
 /**
