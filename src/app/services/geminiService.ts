@@ -46,8 +46,19 @@ const RATE_LIMIT = {
 const API_RETRY_COUNT = 3; // Increased retries for Pro model
 const API_RETRY_DELAY = 1000; // Standard delay
 
-// Use the provided Gemini API key
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'AIzaSyA02_l5l0U-wtkZ1kKixD0d36fpIqxVbPA';
+// Use the provided Gemini API key with localStorage fallback
+function getGeminiApiKey(): string | null {
+  // First check localStorage (browser environment)
+  if (typeof window !== 'undefined') {
+    const storedKey = localStorage.getItem('geminiApiKey');
+    if (storedKey) {
+      return storedKey;
+    }
+  }
+  
+  // Fallback to environment variables
+  return process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'AIzaSyA02_l5l0U-wtkZ1kKixD0d36fpIqxVbPA';
+}
 
 /**
  * Check if we can make a request based on rate limits
@@ -93,6 +104,12 @@ function recordRequest() {
   const now = Date.now();
   RATE_LIMIT.requestQueue.push(now);
   RATE_LIMIT.dailyRequests++;
+  
+  // Update localStorage counter for usage tracking
+  if (typeof window !== 'undefined') {
+    const currentCount = parseInt(localStorage.getItem('gemini_api_call_count') || '0', 10);
+    localStorage.setItem('gemini_api_call_count', (currentCount + 1).toString());
+  }
 }
 
 /**
@@ -115,15 +132,16 @@ async function withRetry<T>(fn: () => Promise<T>, retries = API_RETRY_COUNT, del
   }
 }
 
-// Initialize Gemini AI with the provided API key
+// Initialize Gemini AI with dynamic API key retrieval
 function initializeGemini(): GoogleGenerativeAI | null {
   try {
-    if (!GEMINI_API_KEY) {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
       console.warn('Gemini API key not configured');
       return null;
     }
     
-    return new GoogleGenerativeAI(GEMINI_API_KEY);
+    return new GoogleGenerativeAI(apiKey);
   } catch (error) {
     console.error('Failed to initialize Gemini AI:', error);
     return null;
